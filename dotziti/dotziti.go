@@ -17,7 +17,7 @@
 package dotziti
 
 import (
-	"github.com/openziti/foundation/identity/identity"
+	"github.com/openziti/identity"
 	"errors"
 	"fmt"
 	"gopkg.in/yaml.v2"

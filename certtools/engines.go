@@ -19,8 +19,8 @@ package certtools
 import (
 	"crypto"
 	"fmt"
-	"github.com/openziti/foundation/identity/engines/parsec"
-	"github.com/openziti/foundation/identity/engines/pkcs11"
+	"github.com/openziti/identity/engines/parsec"
+	"github.com/openziti/identity/engines/pkcs11"
 	"net/url"
 )
 
