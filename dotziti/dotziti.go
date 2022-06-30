@@ -20,7 +20,7 @@ import (
 	"github.com/openziti/identity"
 	"errors"
 	"fmt"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"path/filepath"

@@ -22,7 +22,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/openziti/identity/certtools"
-	"github.com/openziti/foundation/util/tlz"
+	"github.com/openziti/foundation/v2/tlz"
 	"io/ioutil"
 	"os"
 	"sync"
