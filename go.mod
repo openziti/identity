@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/michaelquigley/pfxlog v0.6.9
 	github.com/miekg/pkcs11 v1.1.1
-	github.com/openziti/foundation v0.17.30
+	github.com/openziti/foundation v0.17.31
 	github.com/parallaxsecond/parsec-client-go v0.0.0-20210416104105-e2d188152601
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.5
