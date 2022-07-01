@@ -8,7 +8,7 @@ require (
 	github.com/openziti/foundation/v2 v2.0.0
 	github.com/parallaxsecond/parsec-client-go v0.0.0-20210416104105-e2d188152601
 	github.com/sirupsen/logrus v1.8.1
-	github.com/stretchr/testify v1.7.5
+	github.com/stretchr/testify v1.8.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
