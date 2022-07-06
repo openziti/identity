@@ -21,8 +21,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/openziti/identity/certtools"
 	"github.com/openziti/foundation/v2/tlz"
+	"github.com/openziti/identity/certtools"
 	"io/ioutil"
 	"os"
 	"sync"
@@ -35,7 +35,7 @@ const (
 
 type Identity interface {
 	Cert() *tls.Certificate
-	ServerCert() *tls.Certificate
+	ServerCert() []*tls.Certificate
 	CA() *x509.CertPool
 	ServerTLSConfig() *tls.Config
 	ClientTLSConfig() *tls.Config
@@ -55,7 +55,7 @@ type ID struct {
 	certLock sync.RWMutex
 
 	cert       *tls.Certificate
-	serverCert *tls.Certificate
+	serverCert []*tls.Certificate
 	ca         *x509.CertPool
 }
 
@@ -160,7 +160,7 @@ func (id *ID) Cert() *tls.Certificate {
 }
 
 // ServerCert returns the ID's current server certificate that is used by all tls.Config's generated from it.
-func (id *ID) ServerCert() *tls.Certificate {
+func (id *ID) ServerCert() []*tls.Certificate {
 	id.certLock.RLock()
 	defer id.certLock.RUnlock()
 
@@ -224,11 +224,17 @@ func (id *ID) ClientTLSConfig() *tls.Config {
 // GetServerCertificate is used to satisfy tls.Config's GetCertificate requirements.
 // Allows server certificates to be updated after enrollment extensions without stopping
 // listeners and disconnecting clients. New settings are used for all new incoming connection.
-func (id *ID) GetServerCertificate(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
+func (id *ID) GetServerCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	id.certLock.RLock()
 	defer id.certLock.RUnlock()
 
-	return id.serverCert, nil
+	for _, cert := range id.serverCert {
+		if err := hello.SupportsCertificate(cert); err != nil {
+			return cert, nil
+		}
+	}
+
+	return id.serverCert[0], nil
 }
 
 // GetClientCertificate is used to satisfy tls.Config's GetClientCertificate requirements.
@@ -293,14 +299,14 @@ func LoadIdentity(cfg Config) (Identity, error) {
 					return nil, err
 				}
 			}
-			id.serverCert = &tls.Certificate{
-				PrivateKey:  serverKey,
-				Certificate: make([][]byte, len(svrCert)),
-				Leaf:        svrCert[0],
+
+			chains, err := AssembleServerChains(svrCert)
+
+			if err != nil {
+				return nil, err
 			}
-			for i, c := range svrCert {
-				id.serverCert.Certificate[i] = c.Raw
-			}
+
+			id.serverCert = ChainsToTlsCerts(chains, serverKey)
 		}
 	}
 
