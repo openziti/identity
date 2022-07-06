@@ -61,6 +61,23 @@ func Test_Assemble(t *testing.T) {
 		req.Equal(ret[0][0], leaf.cert)
 	})
 
+	t.Run("returns 1 chain of 1 cert with 2 root given only 1 leaf with and without AKIDs", func(t *testing.T) {
+		req := require.New(t)
+		root := newRootCa()
+		leaf := root.NewLeafWithAKID()
+
+		root2 := newRootCa()
+		intermediate2 := root2.NewIntermediateWithoutAKID()
+
+		ret, err := AssembleServerChains([]*x509.Certificate{leaf.cert, root2.cert, intermediate2.cert})
+
+		req.NoError(err)
+		req.NotNil(ret)
+		req.Len(ret, 1)
+		req.Len(ret[0], 1)
+		req.Equal(ret[0][0], leaf.cert)
+	})
+
 	t.Run("returns 1 chain of 1 cert with 1 root given only 1 leaf all without AKIDs", func(t *testing.T) {
 		req := require.New(t)
 		root := newRootCa()
