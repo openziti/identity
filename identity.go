@@ -228,8 +228,17 @@ func (id *ID) GetServerCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate
 	id.certLock.RLock()
 	defer id.certLock.RUnlock()
 
+	if len(id.serverCert) == 0 {
+		return nil, fmt.Errorf("no certificates")
+	}
+
+	if len(id.serverCert) == 1 {
+		return id.serverCert[0], nil
+	}
+
 	for _, cert := range id.serverCert {
-		if err := hello.SupportsCertificate(cert); err != nil {
+
+		if err := hello.SupportsCertificate(cert); err == nil {
 			return cert, nil
 		}
 	}

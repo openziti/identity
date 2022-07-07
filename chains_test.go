@@ -16,13 +16,18 @@
 package identity
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"github.com/stretchr/testify/require"
+	"io/ioutil"
 	"math/big"
 	"net"
+	"net/http"
 	"strconv"
 	"testing"
 	"time"
@@ -196,6 +201,141 @@ func Test_Assemble(t *testing.T) {
 		req.Equal(ret[0][1], intermediate1.cert)
 		req.Equal(ret[0][2], root1.cert)
 	})
+
+	t.Run("can host a http server for 127.0.0.1 and localhost from two different certificates", func(t *testing.T) {
+		req := require.New(t)
+		root := newRootCa()
+
+		leafKey, err := rsa.GenerateKey(rand.Reader, 4096)
+		if err != nil {
+			panic(err)
+		}
+
+		ipLeaf := root.NewLeaf(leafKey, func(certificate *x509.Certificate) {
+			certificate.IPAddresses = append(certificate.IPAddresses, net.ParseIP("127.0.0.1"))
+		})
+
+		dnsLeaf := root.NewLeaf(leafKey, func(certificate *x509.Certificate) {
+			certificate.DNSNames = append(certificate.DNSNames, "localhost")
+		})
+
+		keyPem := string(pem.EncodeToMemory(&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(leafKey),
+		}))
+
+		serverPem := string(pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: ipLeaf.cert.Raw,
+		}))
+
+		serverPem = serverPem + "\n" + string(pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: dnsLeaf.cert.Raw,
+		}))
+
+		caPem := string(pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: root.cert.Raw,
+		}))
+
+		identityCfg := Config{
+			Key:        "pem:" + keyPem,
+			Cert:       "pem:" + serverPem,
+			ServerCert: "pem:" + serverPem,
+			ServerKey:  "pem:" + keyPem,
+			CA:         "pem:" + caPem,
+		}
+
+		id, err := LoadIdentity(identityCfg)
+
+		req.NoError(err)
+
+		tlsConfig := id.ServerTLSConfig()
+
+		tlsConfig.ClientAuth = tls.NoClientCert
+
+		server := http.Server{
+			Addr: "0.0.0.0:8429",
+			Handler: http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				_, _ = writer.Write([]byte("hi"))
+			}),
+			TLSConfig:         tlsConfig,
+			ReadTimeout:       0,
+			ReadHeaderTimeout: 0,
+			WriteTimeout:      0,
+			IdleTimeout:       0,
+			MaxHeaderBytes:    0,
+			TLSNextProto:      nil,
+			ConnState:         nil,
+			ErrorLog:          nil,
+			BaseContext:       nil,
+			ConnContext:       nil,
+		}
+
+		go func() {
+			_ = server.ListenAndServeTLS("", "")
+		}()
+
+		defer func() {
+			_ = server.Shutdown(context.Background())
+		}()
+
+		certPool := x509.NewCertPool()
+
+		certPool.AddCert(root.cert)
+
+		dialer := net.Dialer{
+			Timeout:   15 * time.Second,
+			KeepAlive: 15 * time.Second,
+		}
+
+		httpClient := &http.Client{
+			Transport: &http.Transport{
+				DialContext:           dialer.DialContext,
+				ForceAttemptHTTP2:     true,
+				MaxIdleConns:          100,
+				IdleConnTimeout:       90 * time.Second,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+				TLSClientConfig: &tls.Config{
+					RootCAs: certPool,
+				},
+			},
+
+			CheckRedirect: nil,
+			Jar:           nil,
+			Timeout:       15 * time.Second,
+		}
+
+		t.Run("can perform a get via localhost", func(t *testing.T) {
+			req := require.New(t)
+
+			resp, err := httpClient.Get("https://localhost:8429")
+
+			req.NoError(err)
+			req.Equal(http.StatusOK, resp.StatusCode)
+
+			body, err := ioutil.ReadAll(resp.Body)
+			req.NoError(err)
+			req.Equal([]byte("hi"), body)
+		})
+
+		t.Run("can perform a get via 127.0.0.1", func(t *testing.T) {
+			req := require.New(t)
+
+			resp, err := httpClient.Get("https://127.0.0.1:8429")
+
+			req.NoError(err)
+			req.Equal(http.StatusOK, resp.StatusCode)
+
+			body, err := ioutil.ReadAll(resp.Body)
+			req.NoError(err)
+			req.Equal([]byte("hi"), body)
+		})
+
+	})
+
 }
 
 var currentSerial int64 = 1
@@ -372,7 +512,6 @@ func (ca *testCa) NewLeafWithAKID() *certPair {
 		IPAddresses:    []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 		NotBefore:      time.Now(),
 		NotAfter:       time.Now().AddDate(10, 0, 0),
-		SubjectKeyId:   []byte{1, 2, 3, 4, 6},
 		ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:       x509.KeyUsageDigitalSignature,
 		AuthorityKeyId: ca.cert.SubjectKeyId,
@@ -401,6 +540,48 @@ func (ca *testCa) NewLeafWithAKID() *certPair {
 	}
 }
 
+func (ca *testCa) NewLeaf(leafKey *rsa.PrivateKey, alterCertFuncs ...func(certificate *x509.Certificate)) *certPair {
+	currentSerial++
+
+	leaf := &x509.Certificate{
+		SerialNumber: big.NewInt(1658),
+		Subject: pkix.Name{
+			CommonName:    "leaf-" + strconv.FormatInt(currentSerial, 10),
+			Organization:  []string{"FAKE, INC."},
+			Country:       []string{"US"},
+			Province:      []string{""},
+			Locality:      []string{"Nowhere"},
+			StreetAddress: []string{"Nowhere Road"},
+			PostalCode:    []string{"55555"},
+		},
+		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().AddDate(10, 0, 0),
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:    x509.KeyUsageDigitalSignature,
+	}
+
+	for _, f := range alterCertFuncs {
+		f(leaf)
+	}
+
+	leafBytes, err := x509.CreateCertificate(rand.Reader, leaf, ca.cert, &leafKey.PublicKey, ca.key)
+
+	if err != nil {
+		panic(err)
+	}
+
+	leaf, err = x509.ParseCertificate(leafBytes)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return &certPair{
+		cert: leaf,
+		key:  leafKey,
+	}
+}
 func (ca *testCa) NewLeafWithoutAKID() *certPair {
 	currentSerial++
 
@@ -415,12 +596,11 @@ func (ca *testCa) NewLeafWithoutAKID() *certPair {
 			StreetAddress: []string{"Nowhere Road"},
 			PostalCode:    []string{"55555"},
 		},
-		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(10, 0, 0),
-		SubjectKeyId: []byte{1, 2, 3, 4, 6},
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:     x509.KeyUsageDigitalSignature,
+		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().AddDate(10, 0, 0),
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:    x509.KeyUsageDigitalSignature,
 	}
 
 	leafKey, err := rsa.GenerateKey(rand.Reader, 4096)
