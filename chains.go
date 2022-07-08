@@ -37,11 +37,8 @@ func AssembleServerChains(certs []*x509.Certificate) ([][]*x509.Certificate, err
 	var serverCerts []*x509.Certificate
 
 	for _, cert := range certs {
-
-		for _, usage := range cert.ExtKeyUsage {
-			if usage == x509.ExtKeyUsageAny || usage == x509.ExtKeyUsageServerAuth {
-				serverCerts = append(serverCerts, cert)
-			}
+		if !cert.IsCA && (len(cert.DNSNames) != 0 || len(cert.IPAddresses) != 0) {
+			serverCerts = append(serverCerts, cert)
 		}
 
 		if len(cert.SubjectKeyId) != 0 {
