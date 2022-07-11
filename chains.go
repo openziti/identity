@@ -37,8 +37,18 @@ func AssembleServerChains(certs []*x509.Certificate) ([][]*x509.Certificate, err
 	var serverCerts []*x509.Certificate
 
 	for _, cert := range certs {
-		if !cert.IsCA && (len(cert.DNSNames) != 0 || len(cert.IPAddresses) != 0) {
+		//if not a CA and have any DNS/IP SANs
+		//primary lookup method is "a leaf with SANs"
+		if (!cert.IsCA) && (len(cert.DNSNames) != 0 || len(cert.IPAddresses) != 0) {
 			serverCerts = append(serverCerts, cert)
+		} else {
+			//check for key usage, a CA may be a server certificate
+			//this is a secondary check as extended key usages aren't always respected or used
+			for _, usage := range cert.ExtKeyUsage {
+				if usage == x509.ExtKeyUsageAny || usage == x509.ExtKeyUsageServerAuth {
+					serverCerts = append(serverCerts, cert)
+				}
+			}
 		}
 
 		if len(cert.SubjectKeyId) != 0 {
