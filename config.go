@@ -22,11 +22,12 @@ import (
 )
 
 const (
-	ConfigFieldCert = "cert"
-	ConfigFieldKey = "key"
-	ConfigFieldServerCert = "server_cert"
-	ConfigFieldServerKey = "server_key"
-	ConfigFieldCa = "ca"
+	ConfigFieldCert           = "cert"
+	ConfigFieldKey            = "key"
+	ConfigFieldServerCert     = "server_cert"
+	ConfigFieldServerKey      = "server_key"
+	ConfigFieldAltServerCerts = "alt_server_certs"
+	ConfigFieldCa             = "ca"
 )
 
 // Config represents the basic data structure for and identity configuration. A Config provides details on where the
@@ -39,12 +40,29 @@ const (
 //
 // Example: `file://path/to/my/cert.pem` or `path/to/my/cert.pem'
 // Example: `pem://-----BEGIN CERTIFICATE-----\nMIIB/TCCAYCgAwIBAgIBATAMBggqhk...`
+//
+// Cert must point to a source with a single leaf-first certificate chain and have a corresponding private key in the
+// Key field. ServerCert may point to a source with multiple certificate chains for the same server
+// (i.e. SNI/ECH support) from different trust roots. If ServerKey is not defined, it is assumed that Key will
+// be the private key for all leaf certificates found in ServerCert's source. If ServerKey is defined it is assumed
+// that all leaf certificates in ServerCert's source use it as a private key.
+//
+// The AltServerCerts property allows an array of additional server certificate chains to be loaded
+// with different private keys. It is useful for scenarios where the Cert and ServerCert fields are used for
+// automated certificates from one system (i.e. Ziti) and alternate server certs are automated through another
+// (i.e. Lets Encrypt)
+
 type Config struct {
-	Key        string `json:"key" yaml:"key" mapstructure:"key"`
-	Cert       string `json:"cert" yaml:"cert" mapstructure:"cert"`
+	Key            string       `json:"key" yaml:"key" mapstructure:"key"`
+	Cert           string       `json:"cert" yaml:"cert" mapstructure:"cert"`
+	ServerPair     `yaml:",inline"` //contains ServerCert & ServerKey, yaml requires `inline` JSON does not
+	AltServerCerts []ServerPair `json:"alt_server_certs,omitempty" yaml:"alt_server_certs,omitempty" mapstructure:"alt_server_certs,omitempty"`
+	CA             string       `json:"ca,omitempty" yaml:"ca,omitempty" mapstructure:"ca"`
+}
+
+type ServerPair struct {
 	ServerCert string `json:"server_cert,omitempty" yaml:"server_cert,omitempty" mapstructure:"server_cert,omitempty"`
 	ServerKey  string `json:"server_key,omitempty" yaml:"server_key,omitempty" mapstructure:"server_key,omitempty"`
-	CA         string `json:"ca,omitempty" yaml:"ca,omitempty" mapstructure:"ca"`
 }
 
 // Validate validates the current IdentityConfiguration to have non-empty values all fields except
@@ -81,6 +99,12 @@ func (config *Config) ValidateWithPathContext(pathContext string) error {
 
 	if config.CA == "" {
 		return fmt.Errorf("required configuration value [%s%s] is missing or is blank", pathContext, ConfigFieldCa)
+	}
+
+	for i, altServerCerts := range config.AltServerCerts {
+		if altServerCerts.ServerCert == "" {
+			return fmt.Errorf("required configuration value [%s%s[%d].%s] is missing or is blank", pathContext, ConfigFieldAltServerCerts, i, ConfigFieldServerCert)
+		}
 	}
 
 	return nil
@@ -147,6 +171,12 @@ func (config *Config) ValidateForServerWithPathContext(pathContext string) error
 
 	if config.CA == "" {
 		return fmt.Errorf("required configuration value [%s%s] is missing or is blank", pathContext, ConfigFieldCa)
+	}
+
+	for i, altServerCerts := range config.AltServerCerts {
+		if altServerCerts.ServerCert == "" {
+			return fmt.Errorf("required configuration value [%s%s[%d].%s] is missing or is blank", pathContext, ConfigFieldAltServerCerts, i, ConfigFieldServerCert)
+		}
 	}
 
 	return nil

@@ -240,11 +240,13 @@ func Test_Assemble(t *testing.T) {
 		}))
 
 		identityCfg := Config{
-			Key:        "pem:" + keyPem,
-			Cert:       "pem:" + serverPem,
-			ServerCert: "pem:" + serverPem,
-			ServerKey:  "pem:" + keyPem,
-			CA:         "pem:" + caPem,
+			Key:  "pem:" + keyPem,
+			Cert: "pem:" + serverPem,
+			ServerPair: ServerPair{
+				ServerCert: "pem:" + serverPem,
+				ServerKey:  "pem:" + keyPem,
+			},
+			CA: "pem:" + caPem,
 		}
 
 		id, err := LoadIdentity(identityCfg)

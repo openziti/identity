@@ -52,17 +52,19 @@ func NewIdentity(id Identity) *TokenId {
 
 func (i *TokenId) ShallowCloneWithNewToken(token string) *TokenId {
 	return &TokenId{
-		Identity:    i.Identity,
-		Token: token,
+		Identity: i.Identity,
+		Token:    token,
 	}
 }
 
 func LoadServerIdentity(clientCertPath, serverCertPath, keyPath, caCertPath string) (*TokenId, error) {
 	idCfg := Config{
-		Key:        keyPath,
-		Cert:       clientCertPath,
-		ServerCert: serverCertPath,
-		CA:         caCertPath,
+		Key:  keyPath,
+		Cert: clientCertPath,
+		ServerPair: ServerPair{
+			ServerCert: serverCertPath,
+		},
+		CA: caCertPath,
 	}
 
 	if id, err := LoadIdentity(idCfg); err != nil {

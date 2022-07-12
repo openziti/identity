@@ -315,7 +315,32 @@ func LoadIdentity(cfg Config) (Identity, error) {
 				return nil, err
 			}
 
-			id.serverCert = ChainsToTlsCerts(chains, serverKey)
+			tlsCerts := ChainsToTlsCerts(chains, serverKey)
+			id.serverCert = append(id.serverCert, tlsCerts...)
+		}
+	}
+
+	// Alt Server Cert is optional
+	for _, altCert := range cfg.AltServerCerts {
+		if svrCert, err := loadCert(altCert.ServerCert); err != nil {
+			return id, err
+		} else {
+			serverKey := id.cert.PrivateKey
+			if altCert.ServerKey != "" {
+				serverKey, err = LoadKey(altCert.ServerKey)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			chains, err := AssembleServerChains(svrCert)
+
+			if err != nil {
+				return nil, err
+			}
+
+			tlsCerts := ChainsToTlsCerts(chains, serverKey)
+			id.serverCert = append(id.serverCert, tlsCerts...)
 		}
 	}
 
