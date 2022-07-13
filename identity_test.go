@@ -34,7 +34,6 @@ import (
 func mkCert(cn string, dns []string) (crypto.Signer, *x509.Certificate) {
 	key, _ := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
 
-
 	cert := &x509.Certificate{
 		Subject: pkix.Name{
 			CommonName: cn,
@@ -115,6 +114,111 @@ func TestLoadIdentityWithPEMChain(t *testing.T) {
 	assert.NotNil(t, id.Cert().Leaf)
 	assert.Equal(t, id.Cert().Leaf.Subject.CommonName, "Test Child")
 	assert.Equal(t, key.Public(), id.Cert().Leaf.PublicKey)
+
+}
+
+func TestLoadIdentityWithAltServerCerts(t *testing.T) {
+	// setup
+	parentKey, parentCert := mkCert("Parent", []string{})
+	parentDer, _ := x509.CreateCertificate(rand.Reader, parentCert, parentCert, parentKey.Public(), parentKey)
+
+	childKey1, childCert1 := mkCert("Test Child 1", []string{"client1.netfoundry.io"})
+	childCert1Der, _ := x509.CreateCertificate(rand.Reader, childCert1, parentCert, childKey1.Public(), parentKey)
+
+	childKey2, childCert2 := mkCert("Test Child 2", []string{"client2.netfoundry.io"})
+	childCert2Der, _ := x509.CreateCertificate(rand.Reader, childCert2, parentCert, childKey2.Public(), parentKey)
+
+	childKey3, childCert3 := mkCert("Test Child 3", []string{"client3.netfoundry.io"})
+	childCert3Der, _ := x509.CreateCertificate(rand.Reader, childCert3, parentCert, childKey3.Public(), parentKey)
+
+	childKey1Der, _ := x509.MarshalECPrivateKey(childKey1.(*ecdsa.PrivateKey))
+	childKey1Pem := &pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: childKey1Der,
+	}
+
+	childKey2Der, _ := x509.MarshalECPrivateKey(childKey2.(*ecdsa.PrivateKey))
+	childKey2Pem := &pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: childKey2Der,
+	}
+
+	childKey3Der, _ := x509.MarshalECPrivateKey(childKey3.(*ecdsa.PrivateKey))
+	childKey3Pem := &pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: childKey3Der,
+	}
+
+	parentPem := &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: parentDer,
+	}
+
+	childCert1Pem := &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: childCert1Der,
+	}
+
+	childCert2Pem := &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: childCert2Der,
+	}
+
+	childCert3Pem := &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: childCert3Der,
+	}
+
+	cfg := Config{
+		Key:        "pem:" + string(pem.EncodeToMemory(childKey1Pem)),
+		Cert:       "pem:" + string(pem.EncodeToMemory(childCert1Pem)) + string(pem.EncodeToMemory(parentPem)),
+		ServerKey:  "pem:" + string(pem.EncodeToMemory(childKey2Pem)),
+		ServerCert: "pem:" + string(pem.EncodeToMemory(childCert2Pem)) + string(pem.EncodeToMemory(parentPem)),
+		AltServerCerts: []ServerPair{
+			{
+				ServerKey:  "pem:" + string(pem.EncodeToMemory(childKey3Pem)),
+				ServerCert: "pem:" + string(pem.EncodeToMemory(childCert3Pem)) + string(pem.EncodeToMemory(parentPem)),
+			},
+		},
+	}
+
+	id, err := LoadIdentity(cfg)
+
+	t.Run("loads without error", func(t *testing.T) {
+		assert.NoError(t, err)
+	})
+
+	t.Run("has the correct client certificate", func(t *testing.T) {
+		assert.NotNil(t, id.Cert())
+		assert.Equal(t, 2, len(id.Cert().Certificate))
+		assert.NotNil(t, id.Cert().Leaf)
+		assert.Equal(t, "Test Child 1", id.Cert().Leaf.Subject.CommonName)
+		assert.Equal(t, childKey1.Public(), id.Cert().Leaf.PublicKey)
+	})
+
+	t.Run("has the correct server certificates", func(t *testing.T) {
+		serverTlsCerts := id.ServerCert()
+
+		certsToKeys := map[any]*ecdsa.PrivateKey{
+			childCert2.Subject.String(): childKey2.(*ecdsa.PrivateKey),
+			childCert3.Subject.String(): childKey3.(*ecdsa.PrivateKey),
+		}
+
+		foundServerCerts := map[string]bool{
+			childCert2.Subject.String(): false,
+			childCert3.Subject.String(): false,
+		}
+
+		for _, cert := range serverTlsCerts {
+			if certsToKeys[cert.Leaf.Subject.String()].Equal(cert.PrivateKey) {
+				foundServerCerts[cert.Leaf.Subject.String()] = true
+			}
+		}
+
+		for subject, found := range foundServerCerts {
+			assert.True(t, found, "certificate %s was not found in the TLS config", subject)
+		}
+	})
 
 }
 

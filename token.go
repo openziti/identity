@@ -52,8 +52,8 @@ func NewIdentity(id Identity) *TokenId {
 
 func (i *TokenId) ShallowCloneWithNewToken(token string) *TokenId {
 	return &TokenId{
-		Identity:    i.Identity,
-		Token: token,
+		Identity: i.Identity,
+		Token:    token,
 	}
 }
 

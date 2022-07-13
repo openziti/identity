@@ -31,13 +31,19 @@ const (
 	TestValueServerKey  = "./ziti/etc/ca/intermediate/certs/ctrl-server.key.pem"
 	TestValueCa         = "./ziti/etc/ca/intermediate/certs/ca-chain.cert.pem"
 
+	TestValueAltServerCert01 = "./ziti/etc/ca/intermediate/certs/alt01-ctrl-server.cert.pem"
+	TestValueAltServerKey01  = "./ziti/etc/ca/intermediate/certs/alt01-ctrl-server.key.pem"
+
+	TestValueAltServerCert02 = "./ziti/etc/ca/intermediate/certs/alt02-ctrl-server.cert.pem"
+	TestValueAltServerKey02  = "./ziti/etc/ca/intermediate/certs/alt02-ctrl-server.key.pem"
+
 	TestValuePathContext = "my.path"
 
 	TestValueMissingOrBlankFieldErrorTemplate = "required configuration value [%s] is missing or is blank"
 	TestValueMissingOrBlankFieldsTemplate     = "required configuration values [%s], [%s] are both missing or are blank"
 	TestValueMapStringErrorTemplate           = "value [%s] must be a string"
 
-	TestValueJsonTemplate                     = `
+	TestValueJsonNoAltServerCertsTemplate = `
 		{
 		  "cert": "%s",
 		  "key": "%s",
@@ -46,51 +52,129 @@ const (
 		  "ca": "%s"
 		}`
 
-	TestValueYamlTemplate = `
+	TestValueJsonWithAltServerCertsTemplate = `
+		{
+		  "cert": "%s",
+		  "key": "%s",
+		  "server_cert": "%s",
+		  "server_key": "%s",
+		  "ca": "%s",
+		  "alt_server_certs": [
+            {
+              "server_cert": "%s",
+              "server_key": "%s"
+            },
+            {
+              "server_cert": "%s",
+              "server_key": "%s"
+            }
+          ]
+		}`
+
+	TestValueYamlNoAltServerCertsTemplate = `
 cert: "%s"
 key: "%s"
 server_cert: "%s"
 server_key: "%s"
 ca: "%s"
 `
+
+	TestValueYamlWithAltServerCertsTemplate = `
+
+cert: "%s"
+key: "%s"
+server_cert: "%s"
+server_key: "%s"
+ca: "%s"
+alt_server_certs:
+ - server_cert: "%s"
+   server_key: "%s"
+ - server_cert: "%s"
+   server_key: "%s"
+`
 )
 
 func Test_Config(t *testing.T) {
 	t.Run("can parse from JSON", func(t *testing.T) {
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey,
+			TestValueServerCert, TestValueServerKey, TestValueCa))
 
 		config := Config{}
 		err := json.Unmarshal(identityConfigJson, &config)
 
 		req := require.New(t)
 		req.NoError(err)
-		req.Equal(config.Cert, TestValueCert)
-		req.Equal(config.Key, TestValueKey)
-		req.Equal(config.ServerCert, TestValueServerCert)
-		req.Equal(config.ServerKey, TestValueServerKey)
-		req.Equal(config.CA, TestValueCa)
+		req.Equal(TestValueCert, config.Cert)
+		req.Equal(TestValueKey, config.Key)
+		req.Equal(TestValueServerCert, config.ServerCert)
+		req.Equal(TestValueServerKey, config.ServerKey)
+		req.Equal(TestValueCa, config.CA)
+	})
+
+	t.Run("can parse from JSON with alt server certs", func(t *testing.T) {
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonWithAltServerCertsTemplate, TestValueCert, TestValueKey,
+			TestValueServerCert, TestValueServerKey, TestValueCa,
+			TestValueAltServerCert01, TestValueAltServerKey01,
+			TestValueAltServerCert02, TestValueAltServerKey02))
+
+		config := Config{}
+		err := json.Unmarshal(identityConfigJson, &config)
+
+		req := require.New(t)
+		req.NoError(err)
+		req.Equal(TestValueCert, config.Cert)
+		req.Equal(TestValueKey, config.Key)
+		req.Equal(TestValueServerCert, config.ServerCert)
+		req.Equal(TestValueServerKey, config.ServerKey)
+		req.Equal(TestValueCa, config.CA)
+		req.Equal(TestValueAltServerCert01, config.AltServerCerts[0].ServerCert)
+		req.Equal(TestValueAltServerKey01, config.AltServerCerts[0].ServerKey)
+		req.Equal(TestValueAltServerCert02, config.AltServerCerts[1].ServerCert)
+		req.Equal(TestValueAltServerKey02, config.AltServerCerts[1].ServerKey)
 	})
 
 	t.Run("can parse from YAML", func(t *testing.T) {
-		identityConfigYaml := []byte(fmt.Sprintf(TestValueYamlTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigYaml := []byte(fmt.Sprintf(TestValueYamlNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
 
 		config := Config{}
 		err := yaml.Unmarshal(identityConfigYaml, &config)
 
 		req := require.New(t)
 		req.NoError(err)
-		req.Equal(config.Cert, TestValueCert)
-		req.Equal(config.Key, TestValueKey)
-		req.Equal(config.ServerCert, TestValueServerCert)
-		req.Equal(config.ServerKey, TestValueServerKey)
-		req.Equal(config.CA, TestValueCa)
+		req.Equal(TestValueCert, config.Cert)
+		req.Equal(TestValueKey, config.Key)
+		req.Equal(TestValueServerCert, config.ServerCert)
+		req.Equal(TestValueServerKey, config.ServerKey)
+		req.Equal(TestValueCa, config.CA)
+	})
+
+	t.Run("can parse from YAML with alt server certs", func(t *testing.T) {
+		identityConfigYaml := []byte(fmt.Sprintf(TestValueYamlWithAltServerCertsTemplate, TestValueCert, TestValueKey,
+			TestValueServerCert, TestValueServerKey, TestValueCa,
+			TestValueAltServerCert01, TestValueAltServerKey01,
+			TestValueAltServerCert02, TestValueAltServerKey02))
+
+		config := Config{}
+		err := yaml.Unmarshal(identityConfigYaml, &config)
+
+		req := require.New(t)
+		req.NoError(err)
+		req.Equal(TestValueCert, config.Cert)
+		req.Equal(TestValueKey, config.Key)
+		req.Equal(TestValueServerCert, config.ServerCert)
+		req.Equal(TestValueServerKey, config.ServerKey)
+		req.Equal(TestValueCa, config.CA)
+		req.Equal(TestValueAltServerCert01, config.AltServerCerts[0].ServerCert)
+		req.Equal(TestValueAltServerKey01, config.AltServerCerts[0].ServerKey)
+		req.Equal(TestValueAltServerCert02, config.AltServerCerts[1].ServerCert)
+		req.Equal(TestValueAltServerKey02, config.AltServerCerts[1].ServerKey)
 	})
 }
 
 func Test_Config_Validate(t *testing.T) {
 	t.Run("all fields present returns no errors", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 		err := json.Unmarshal(identityConfigJson, &config)
 
@@ -100,7 +184,7 @@ func Test_Config_Validate(t *testing.T) {
 
 	t.Run("all fields present returns no errors", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 		err := json.Unmarshal(identityConfigJson, &config)
 
@@ -110,7 +194,7 @@ func Test_Config_Validate(t *testing.T) {
 
 	t.Run("empty string cert returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, "", TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, "", TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -118,12 +202,12 @@ func Test_Config_Validate(t *testing.T) {
 
 		err = config.Validate()
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "cert"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "cert"), err.Error())
 	})
 
 	t.Run("empty string key returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, "", TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, "", TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -131,12 +215,12 @@ func Test_Config_Validate(t *testing.T) {
 
 		err = config.Validate()
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "key"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "key"), err.Error())
 	})
 
 	t.Run("empty string server_cert returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, "", TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, "", TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -144,12 +228,12 @@ func Test_Config_Validate(t *testing.T) {
 
 		err = config.Validate()
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "server_cert"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "server_cert"), err.Error())
 	})
 
 	t.Run("empty string ca returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, ""))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, ""))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -157,12 +241,12 @@ func Test_Config_Validate(t *testing.T) {
 
 		err = config.Validate()
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "ca"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "ca"), err.Error())
 	})
 
 	t.Run("empty string server_key returns no error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, "", TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, "", TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -170,13 +254,42 @@ func Test_Config_Validate(t *testing.T) {
 
 		err = config.Validate()
 		req.NoError(err)
+	})
+
+	t.Run("empty string alt_server_cert[0].sever_key returns no error", func(t *testing.T) {
+		req := require.New(t)
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonWithAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, "", TestValueCa,
+			TestValueAltServerCert01, "",
+			TestValueAltServerCert02, TestValueAltServerKey02))
+		config := Config{}
+
+		err := json.Unmarshal(identityConfigJson, &config)
+		req.NoError(err)
+
+		err = config.Validate()
+		req.NoError(err)
+	})
+
+	t.Run("empty string alt_server_cert[0].server_cert returns error", func(t *testing.T) {
+		req := require.New(t)
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonWithAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, "", TestValueCa,
+			TestValueAltServerKey02, TestValueAltServerKey01,
+			"", TestValueAltServerKey02))
+		config := Config{}
+
+		err := json.Unmarshal(identityConfigJson, &config)
+		req.NoError(err)
+
+		err = config.Validate()
+		req.Error(err)
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "alt_server_certs[1].server_cert"), err.Error())
 	})
 }
 
 func Test_Config_ValidateWithPathContext(t *testing.T) {
 	t.Run("all fields present returns no errors", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 		err := json.Unmarshal(identityConfigJson, &config)
 
@@ -186,7 +299,7 @@ func Test_Config_ValidateWithPathContext(t *testing.T) {
 
 	t.Run("empty string cert returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, "", TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, "", TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -194,12 +307,12 @@ func Test_Config_ValidateWithPathContext(t *testing.T) {
 
 		err = config.ValidateWithPathContext(TestValuePathContext)
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, TestValuePathContext+".cert"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, TestValuePathContext+".cert"), err.Error())
 	})
 
 	t.Run("empty string key returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, "", TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, "", TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -207,12 +320,12 @@ func Test_Config_ValidateWithPathContext(t *testing.T) {
 
 		err = config.ValidateWithPathContext(TestValuePathContext)
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, TestValuePathContext+".key"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, TestValuePathContext+".key"), err.Error())
 	})
 
 	t.Run("empty string server_cert returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, "", TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, "", TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -220,12 +333,12 @@ func Test_Config_ValidateWithPathContext(t *testing.T) {
 
 		err = config.ValidateWithPathContext(TestValuePathContext)
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, TestValuePathContext+".server_cert"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, TestValuePathContext+".server_cert"), err.Error())
 	})
 
 	t.Run("empty string ca returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, ""))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, ""))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -233,12 +346,12 @@ func Test_Config_ValidateWithPathContext(t *testing.T) {
 
 		err = config.ValidateWithPathContext(TestValuePathContext)
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, TestValuePathContext+".ca"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, TestValuePathContext+".ca"), err.Error())
 	})
 
 	t.Run("empty string server_key returns no error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, "", TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, "", TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -246,13 +359,42 @@ func Test_Config_ValidateWithPathContext(t *testing.T) {
 
 		err = config.ValidateWithPathContext(TestValuePathContext)
 		req.NoError(err)
+	})
+
+	t.Run("empty string alt_server_cert[0].sever_key returns no error", func(t *testing.T) {
+		req := require.New(t)
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonWithAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, "", TestValueCa,
+			TestValueAltServerCert01, "",
+			TestValueAltServerCert02, TestValueAltServerKey02))
+		config := Config{}
+
+		err := json.Unmarshal(identityConfigJson, &config)
+		req.NoError(err)
+
+		err = config.ValidateWithPathContext(TestValuePathContext)
+		req.NoError(err)
+	})
+
+	t.Run("empty string alt_server_cert[0].server_cert returns error", func(t *testing.T) {
+		req := require.New(t)
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonWithAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, "", TestValueCa,
+			TestValueAltServerKey02, TestValueAltServerKey01,
+			"", TestValueAltServerKey02))
+		config := Config{}
+
+		err := json.Unmarshal(identityConfigJson, &config)
+		req.NoError(err)
+
+		err = config.ValidateWithPathContext(TestValuePathContext)
+		req.Error(err)
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "my.path.alt_server_certs[1].server_cert"), err.Error())
 	})
 }
 
 func Test_Config_ValidateForClient(t *testing.T) {
 	t.Run("all fields present returns no errors", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 		err := json.Unmarshal(identityConfigJson, &config)
 
@@ -262,7 +404,7 @@ func Test_Config_ValidateForClient(t *testing.T) {
 
 	t.Run("minimum fields present returns no errors", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, "", "", ""))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, "", "", ""))
 		config := Config{}
 		err := json.Unmarshal(identityConfigJson, &config)
 
@@ -272,7 +414,7 @@ func Test_Config_ValidateForClient(t *testing.T) {
 
 	t.Run("empty string cert returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, "", TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, "", TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -280,12 +422,12 @@ func Test_Config_ValidateForClient(t *testing.T) {
 
 		err = config.ValidateForClient()
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "cert"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "cert"), err.Error())
 	})
 
 	t.Run("empty string key returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, "", TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, "", TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -293,12 +435,12 @@ func Test_Config_ValidateForClient(t *testing.T) {
 
 		err = config.ValidateForClient()
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "key"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "key"), err.Error())
 	})
 
 	t.Run("empty string server_cert returns no error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, "", TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, "", TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -310,7 +452,7 @@ func Test_Config_ValidateForClient(t *testing.T) {
 
 	t.Run("empty string ca returns no error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, ""))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, ""))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -322,7 +464,7 @@ func Test_Config_ValidateForClient(t *testing.T) {
 
 	t.Run("empty string server_key returns no error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, "", TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, "", TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -337,7 +479,7 @@ func Test_Config_ValidateForClientWithPathContext(t *testing.T) {
 
 	t.Run("all fields present returns no errors", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 		err := json.Unmarshal(identityConfigJson, &config)
 
@@ -347,7 +489,7 @@ func Test_Config_ValidateForClientWithPathContext(t *testing.T) {
 
 	t.Run("minimum fields present returns no errors", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, "", "", ""))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, "", "", ""))
 		config := Config{}
 		err := json.Unmarshal(identityConfigJson, &config)
 
@@ -357,7 +499,7 @@ func Test_Config_ValidateForClientWithPathContext(t *testing.T) {
 
 	t.Run("empty string cert returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, "", TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, "", TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -365,12 +507,12 @@ func Test_Config_ValidateForClientWithPathContext(t *testing.T) {
 
 		err = config.ValidateForClientWithPathContext(TestValuePathContext)
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, TestValuePathContext+".cert"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, TestValuePathContext+".cert"), err.Error())
 	})
 
 	t.Run("empty string key returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, "", TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, "", TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -378,12 +520,12 @@ func Test_Config_ValidateForClientWithPathContext(t *testing.T) {
 
 		err = config.ValidateForClientWithPathContext(TestValuePathContext)
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, TestValuePathContext+".key"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, TestValuePathContext+".key"), err.Error())
 	})
 
 	t.Run("empty string server_cert returns no error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, "", TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, "", TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -395,7 +537,7 @@ func Test_Config_ValidateForClientWithPathContext(t *testing.T) {
 
 	t.Run("empty string ca returns no error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, ""))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, ""))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -407,7 +549,7 @@ func Test_Config_ValidateForClientWithPathContext(t *testing.T) {
 
 	t.Run("empty string server_key returns no error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, "", TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, "", TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -421,7 +563,7 @@ func Test_Config_ValidateForClientWithPathContext(t *testing.T) {
 func Test_Config_ValidateForServer(t *testing.T) {
 	t.Run("all fields present returns no errors", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 		err := json.Unmarshal(identityConfigJson, &config)
 
@@ -431,7 +573,7 @@ func Test_Config_ValidateForServer(t *testing.T) {
 
 	t.Run("minimum fields present returns no errors", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, "", "", TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, "", "", TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 		err := json.Unmarshal(identityConfigJson, &config)
 
@@ -441,7 +583,7 @@ func Test_Config_ValidateForServer(t *testing.T) {
 
 	t.Run("minimum fields present no server_key returns no errors", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, "", TestValueKey, TestValueServerCert, "", TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, "", TestValueKey, TestValueServerCert, "", TestValueCa))
 		config := Config{}
 		err := json.Unmarshal(identityConfigJson, &config)
 
@@ -451,7 +593,7 @@ func Test_Config_ValidateForServer(t *testing.T) {
 
 	t.Run("empty string cert returns no error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, "", TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, "", TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -463,7 +605,7 @@ func Test_Config_ValidateForServer(t *testing.T) {
 
 	t.Run("empty string key returns no error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, "", TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, "", TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -475,7 +617,7 @@ func Test_Config_ValidateForServer(t *testing.T) {
 
 	t.Run("empty string server_cert returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, "", TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, "", TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -483,12 +625,12 @@ func Test_Config_ValidateForServer(t *testing.T) {
 
 		err = config.ValidateForServer()
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "server_cert"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "server_cert"), err.Error())
 	})
 
 	t.Run("empty string ca returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, ""))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, ""))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -496,12 +638,12 @@ func Test_Config_ValidateForServer(t *testing.T) {
 
 		err = config.ValidateForServer()
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "ca"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "ca"), err.Error())
 	})
 
 	t.Run("empty string server_key and no default key returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, "", TestValueServerCert, "", TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, "", TestValueServerCert, "", TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -509,14 +651,43 @@ func Test_Config_ValidateForServer(t *testing.T) {
 
 		err = config.ValidateForServer()
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldsTemplate, "key", "server_key"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldsTemplate, "key", "server_key"), err.Error())
+	})
+
+	t.Run("empty string alt_server_cert[0].sever_key returns no error", func(t *testing.T) {
+		req := require.New(t)
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonWithAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, "", TestValueCa,
+			TestValueAltServerCert01, "",
+			TestValueAltServerCert02, TestValueAltServerKey02))
+		config := Config{}
+
+		err := json.Unmarshal(identityConfigJson, &config)
+		req.NoError(err)
+
+		err = config.ValidateForServer()
+		req.NoError(err)
+	})
+
+	t.Run("empty string alt_server_cert[0].server_cert returns error", func(t *testing.T) {
+		req := require.New(t)
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonWithAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, "", TestValueCa,
+			TestValueAltServerKey02, TestValueAltServerKey01,
+			"", TestValueAltServerKey02))
+		config := Config{}
+
+		err := json.Unmarshal(identityConfigJson, &config)
+		req.NoError(err)
+
+		err = config.ValidateForServer()
+		req.Error(err)
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, "alt_server_certs[1].server_cert"), err.Error())
 	})
 }
 
 func Test_Config_ValidateForServerWithPathContext(t *testing.T) {
 	t.Run("all fields present returns no errors", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 		err := json.Unmarshal(identityConfigJson, &config)
 
@@ -526,7 +697,7 @@ func Test_Config_ValidateForServerWithPathContext(t *testing.T) {
 
 	t.Run("minimum fields present returns no errors", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, "", "", TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, "", "", TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 		err := json.Unmarshal(identityConfigJson, &config)
 
@@ -536,7 +707,7 @@ func Test_Config_ValidateForServerWithPathContext(t *testing.T) {
 
 	t.Run("minimum fields present no server_key returns no errors", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, "", TestValueKey, TestValueServerCert, "", TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, "", TestValueKey, TestValueServerCert, "", TestValueCa))
 		config := Config{}
 		err := json.Unmarshal(identityConfigJson, &config)
 
@@ -546,7 +717,7 @@ func Test_Config_ValidateForServerWithPathContext(t *testing.T) {
 
 	t.Run("empty string cert returns no error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, "", TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, "", TestValueKey, TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -558,7 +729,7 @@ func Test_Config_ValidateForServerWithPathContext(t *testing.T) {
 
 	t.Run("empty string key returns no error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, "", TestValueServerCert, TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, "", TestValueServerCert, TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -570,7 +741,7 @@ func Test_Config_ValidateForServerWithPathContext(t *testing.T) {
 
 	t.Run("empty string server_cert returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, "", TestValueServerKey, TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, "", TestValueServerKey, TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -578,12 +749,12 @@ func Test_Config_ValidateForServerWithPathContext(t *testing.T) {
 
 		err = config.ValidateForServerWithPathContext(TestValuePathContext)
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, TestValuePathContext+".server_cert"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, TestValuePathContext+".server_cert"), err.Error())
 	})
 
 	t.Run("empty string ca returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, ""))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, TestValueKey, TestValueServerCert, TestValueServerKey, ""))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -591,12 +762,12 @@ func Test_Config_ValidateForServerWithPathContext(t *testing.T) {
 
 		err = config.ValidateForServerWithPathContext(TestValuePathContext)
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, TestValuePathContext+".ca"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldErrorTemplate, TestValuePathContext+".ca"), err.Error())
 	})
 
 	t.Run("empty string server_key and no default key returns error", func(t *testing.T) {
 		req := require.New(t)
-		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonTemplate, TestValueCert, "", TestValueServerCert, "", TestValueCa))
+		identityConfigJson := []byte(fmt.Sprintf(TestValueJsonNoAltServerCertsTemplate, TestValueCert, "", TestValueServerCert, "", TestValueCa))
 		config := Config{}
 
 		err := json.Unmarshal(identityConfigJson, &config)
@@ -604,7 +775,7 @@ func Test_Config_ValidateForServerWithPathContext(t *testing.T) {
 
 		err = config.ValidateForServerWithPathContext(TestValuePathContext)
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMissingOrBlankFieldsTemplate, TestValuePathContext+".key", TestValuePathContext+".server_key"))
+		req.Equal(fmt.Sprintf(TestValueMissingOrBlankFieldsTemplate, TestValuePathContext+".key", TestValuePathContext+".server_key"), err.Error())
 	})
 }
 
@@ -623,11 +794,11 @@ func Test_NewConfigFromMap(t *testing.T) {
 		config, err := NewConfigFromMap(configMap)
 
 		req.NoError(err)
-		req.Equal(config.Cert, TestValueCert)
-		req.Equal(config.Key, TestValueKey)
-		req.Equal(config.ServerCert, TestValueServerCert)
-		req.Equal(config.ServerKey, TestValueServerKey)
-		req.Equal(config.CA, TestValueCa)
+		req.Equal(TestValueCert, config.Cert)
+		req.Equal(TestValueKey, config.Key)
+		req.Equal(TestValueServerCert, config.ServerCert)
+		req.Equal(TestValueServerKey, config.ServerKey)
+		req.Equal(TestValueCa, config.CA)
 	})
 
 	t.Run("errors on non-string cert", func(t *testing.T) {
@@ -644,7 +815,7 @@ func Test_NewConfigFromMap(t *testing.T) {
 		_, err := NewConfigFromMap(configMap)
 
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMapStringErrorTemplate, "cert"))
+		req.Equal(fmt.Sprintf(TestValueMapStringErrorTemplate, "cert"), err.Error())
 	})
 
 	t.Run("errors on non-string key", func(t *testing.T) {
@@ -661,7 +832,7 @@ func Test_NewConfigFromMap(t *testing.T) {
 		_, err := NewConfigFromMap(configMap)
 
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMapStringErrorTemplate, "key"))
+		req.Equal(fmt.Sprintf(TestValueMapStringErrorTemplate, "key"), err.Error())
 	})
 
 	t.Run("errors on non-string server_cert", func(t *testing.T) {
@@ -678,7 +849,7 @@ func Test_NewConfigFromMap(t *testing.T) {
 		_, err := NewConfigFromMap(configMap)
 
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMapStringErrorTemplate, "server_cert"))
+		req.Equal(fmt.Sprintf(TestValueMapStringErrorTemplate, "server_cert"), err.Error())
 	})
 
 	t.Run("errors on non-string server_key", func(t *testing.T) {
@@ -695,7 +866,7 @@ func Test_NewConfigFromMap(t *testing.T) {
 		_, err := NewConfigFromMap(configMap)
 
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMapStringErrorTemplate, "server_key"))
+		req.Equal(fmt.Sprintf(TestValueMapStringErrorTemplate, "server_key"), err.Error())
 	})
 
 	t.Run("errors on non-string ca", func(t *testing.T) {
@@ -712,7 +883,7 @@ func Test_NewConfigFromMap(t *testing.T) {
 		_, err := NewConfigFromMap(configMap)
 
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMapStringErrorTemplate, "ca"))
+		req.Equal(fmt.Sprintf(TestValueMapStringErrorTemplate, "ca"), err.Error())
 	})
 }
 
@@ -752,7 +923,7 @@ func Test_NewConfigFromMapWithPathContext(t *testing.T) {
 		_, err := NewConfigFromMapWithPathContext(configMap, TestValuePathContext)
 
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMapStringErrorTemplate, TestValuePathContext + ".cert"))
+		req.Equal(err.Error(), fmt.Sprintf(TestValueMapStringErrorTemplate, TestValuePathContext+".cert"))
 	})
 
 	t.Run("errors on non-string key", func(t *testing.T) {
@@ -769,7 +940,7 @@ func Test_NewConfigFromMapWithPathContext(t *testing.T) {
 		_, err := NewConfigFromMapWithPathContext(configMap, TestValuePathContext)
 
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMapStringErrorTemplate, TestValuePathContext + ".key"))
+		req.Equal(err.Error(), fmt.Sprintf(TestValueMapStringErrorTemplate, TestValuePathContext+".key"))
 	})
 
 	t.Run("errors on non-string server_cert", func(t *testing.T) {
@@ -786,7 +957,7 @@ func Test_NewConfigFromMapWithPathContext(t *testing.T) {
 		_, err := NewConfigFromMapWithPathContext(configMap, TestValuePathContext)
 
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMapStringErrorTemplate, TestValuePathContext + ".server_cert"))
+		req.Equal(err.Error(), fmt.Sprintf(TestValueMapStringErrorTemplate, TestValuePathContext+".server_cert"))
 	})
 
 	t.Run("errors on non-string server_key", func(t *testing.T) {
@@ -803,7 +974,7 @@ func Test_NewConfigFromMapWithPathContext(t *testing.T) {
 		_, err := NewConfigFromMapWithPathContext(configMap, TestValuePathContext)
 
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMapStringErrorTemplate, TestValuePathContext + ".server_key"))
+		req.Equal(err.Error(), fmt.Sprintf(TestValueMapStringErrorTemplate, TestValuePathContext+".server_key"))
 	})
 
 	t.Run("errors on non-string ca", func(t *testing.T) {
@@ -820,6 +991,6 @@ func Test_NewConfigFromMapWithPathContext(t *testing.T) {
 		_, err := NewConfigFromMapWithPathContext(configMap, TestValuePathContext)
 
 		req.Error(err)
-		req.Equal(err.Error(), fmt.Sprintf(TestValueMapStringErrorTemplate, TestValuePathContext + ".ca"))
+		req.Equal(err.Error(), fmt.Sprintf(TestValueMapStringErrorTemplate, TestValuePathContext+".ca"))
 	})
 }
