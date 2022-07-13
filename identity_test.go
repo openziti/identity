@@ -170,12 +170,10 @@ func TestLoadIdentityWithAltServerCerts(t *testing.T) {
 	}
 
 	cfg := Config{
-		Key:  "pem:" + string(pem.EncodeToMemory(childKey1Pem)),
-		Cert: "pem:" + string(pem.EncodeToMemory(childCert1Pem)) + string(pem.EncodeToMemory(parentPem)),
-		ServerPair: ServerPair{
-			ServerKey:  "pem:" + string(pem.EncodeToMemory(childKey2Pem)),
-			ServerCert: "pem:" + string(pem.EncodeToMemory(childCert2Pem)) + string(pem.EncodeToMemory(parentPem)),
-		},
+		Key:        "pem:" + string(pem.EncodeToMemory(childKey1Pem)),
+		Cert:       "pem:" + string(pem.EncodeToMemory(childCert1Pem)) + string(pem.EncodeToMemory(parentPem)),
+		ServerKey:  "pem:" + string(pem.EncodeToMemory(childKey2Pem)),
+		ServerCert: "pem:" + string(pem.EncodeToMemory(childCert2Pem)) + string(pem.EncodeToMemory(parentPem)),
 		AltServerCerts: []ServerPair{
 			{
 				ServerKey:  "pem:" + string(pem.EncodeToMemory(childKey3Pem)),

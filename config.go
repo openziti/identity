@@ -55,7 +55,8 @@ const (
 type Config struct {
 	Key            string       `json:"key" yaml:"key" mapstructure:"key"`
 	Cert           string       `json:"cert" yaml:"cert" mapstructure:"cert"`
-	ServerPair     `yaml:",inline"` //contains ServerCert & ServerKey, yaml requires `inline` JSON does not
+	ServerCert     string       `json:"server_cert,omitempty" yaml:"server_cert,omitempty" mapstructure:"server_cert,omitempty"`
+	ServerKey      string       `json:"server_key,omitempty" yaml:"server_key,omitempty" mapstructure:"server_key,omitempty"`
 	AltServerCerts []ServerPair `json:"alt_server_certs,omitempty" yaml:"alt_server_certs,omitempty" mapstructure:"alt_server_certs,omitempty"`
 	CA             string       `json:"ca,omitempty" yaml:"ca,omitempty" mapstructure:"ca"`
 }
