@@ -238,6 +238,43 @@ func NewConfigFromMapWithPathContext(identityMap map[interface{}]interface{}, pa
 		}
 	}
 
+	if altServerCertsInterface, ok := identityMap[ConfigFieldAltServerCerts]; ok {
+		if altServerCertsSliceInterface, ok := altServerCertsInterface.([]any); ok {
+			for i, altServerCertInterface := range altServerCertsSliceInterface {
+				if altServerCertMap, ok := altServerCertInterface.(map[any]any); ok {
+					serverCertVal := altServerCertMap[ConfigFieldServerCert]
+					serverKeyVal := altServerCertMap[ConfigFieldServerKey]
+
+					serverCert, ok := serverCertVal.(string)
+
+					if !ok {
+						return nil, fmt.Errorf("value [%s%s[%d].%s] must be a string", pathContext, ConfigFieldAltServerCerts, i, ConfigFieldServerCert)
+					}
+
+					serverKey := ""
+
+					if serverKeyVal != nil {
+						serverKey, ok = serverKeyVal.(string)
+
+						if !ok {
+							return nil, fmt.Errorf("value [%s%s[%d].%s] must be a string", pathContext, ConfigFieldAltServerCerts, i, ConfigFieldServerKey)
+						}
+					}
+
+					idConfig.AltServerCerts = append(idConfig.AltServerCerts, ServerPair{
+						ServerCert: serverCert,
+						ServerKey:  serverKey,
+					})
+
+				} else {
+					return nil, fmt.Errorf("value [%s%s[%d]] must be an obbject", pathContext, ConfigFieldAltServerCerts, i)
+				}
+			}
+		} else {
+			return nil, fmt.Errorf("value [%s%s] must be an array", pathContext, ConfigFieldAltServerCerts)
+		}
+	} //not required
+
 	if caInterface, ok := identityMap[ConfigFieldCa]; ok {
 		if ca, ok := caInterface.(string); ok {
 			idConfig.CA = ca
