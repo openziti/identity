@@ -789,6 +789,15 @@ func Test_NewConfigFromMap(t *testing.T) {
 			"server_cert": TestValueServerCert,
 			"server_key":  TestValueServerKey,
 			"ca":          TestValueCa,
+			"alt_server_certs": []any{
+				map[any]any{
+					"server_cert": TestValueAltServerCert01,
+					"server_key":  TestValueAltServerKey01,
+				},
+				map[any]any{
+					"server_cert": TestValueAltServerCert02,
+				},
+			},
 		}
 
 		config, err := NewConfigFromMap(configMap)
@@ -799,6 +808,9 @@ func Test_NewConfigFromMap(t *testing.T) {
 		req.Equal(TestValueServerCert, config.ServerCert)
 		req.Equal(TestValueServerKey, config.ServerKey)
 		req.Equal(TestValueCa, config.CA)
+		req.Equal(TestValueAltServerCert01, config.AltServerCerts[0].ServerCert)
+		req.Equal(TestValueAltServerKey01, config.AltServerCerts[0].ServerKey)
+		req.Equal(TestValueAltServerCert02, config.AltServerCerts[1].ServerCert)
 	})
 
 	t.Run("errors on non-string cert", func(t *testing.T) {
@@ -810,6 +822,15 @@ func Test_NewConfigFromMap(t *testing.T) {
 			"server_cert": TestValueServerCert,
 			"server_key":  TestValueServerKey,
 			"ca":          TestValueCa,
+			"alt_server_certs": []any{
+				map[any]any{
+					"server_cert": TestValueAltServerCert01,
+					"server_key":  TestValueAltServerKey01,
+				},
+				map[any]any{
+					"server_cert": TestValueAltServerCert02,
+				},
+			},
 		}
 
 		_, err := NewConfigFromMap(configMap)
@@ -827,6 +848,15 @@ func Test_NewConfigFromMap(t *testing.T) {
 			"server_cert": TestValueServerCert,
 			"server_key":  TestValueServerKey,
 			"ca":          TestValueCa,
+			"alt_server_certs": []any{
+				map[any]any{
+					"server_cert": TestValueAltServerCert01,
+					"server_key":  TestValueAltServerKey01,
+				},
+				map[any]any{
+					"server_cert": TestValueAltServerCert02,
+				},
+			},
 		}
 
 		_, err := NewConfigFromMap(configMap)
@@ -844,6 +874,15 @@ func Test_NewConfigFromMap(t *testing.T) {
 			"server_cert": 1,
 			"server_key":  TestValueServerKey,
 			"ca":          TestValueCa,
+			"alt_server_certs": []any{
+				map[any]any{
+					"server_cert": TestValueAltServerCert01,
+					"server_key":  TestValueAltServerKey01,
+				},
+				map[any]any{
+					"server_cert": TestValueAltServerCert02,
+				},
+			},
 		}
 
 		_, err := NewConfigFromMap(configMap)
@@ -861,6 +900,15 @@ func Test_NewConfigFromMap(t *testing.T) {
 			"server_cert": TestValueServerCert,
 			"server_key":  1,
 			"ca":          TestValueCa,
+			"alt_server_certs": []any{
+				map[any]any{
+					"server_cert": TestValueAltServerCert01,
+					"server_key":  TestValueAltServerKey01,
+				},
+				map[any]any{
+					"server_cert": TestValueAltServerCert02,
+				},
+			},
 		}
 
 		_, err := NewConfigFromMap(configMap)
@@ -878,12 +926,66 @@ func Test_NewConfigFromMap(t *testing.T) {
 			"server_cert": TestValueServerCert,
 			"server_key":  TestValueServerKey,
 			"ca":          1,
+			"alt_server_certs": []any{
+				map[any]any{
+					"server_cert": TestValueAltServerCert01,
+					"server_key":  TestValueAltServerKey01,
+				},
+				map[any]any{
+					"server_cert": TestValueAltServerCert02,
+				},
+			},
 		}
 
 		_, err := NewConfigFromMap(configMap)
 
 		req.Error(err)
 		req.Equal(fmt.Sprintf(TestValueMapStringErrorTemplate, "ca"), err.Error())
+	})
+
+	t.Run("errors on missing alt server certificate", func(t *testing.T) {
+		req := require.New(t)
+
+		configMap := map[interface{}]interface{}{
+			"cert":        TestValueCert,
+			"key":         TestValueKey,
+			"server_cert": TestValueServerCert,
+			"server_key":  TestValueServerKey,
+			"ca":          TestValueCa,
+			"alt_server_certs": []any{
+				map[any]any{
+					"server_key": TestValueAltServerKey01,
+				},
+			},
+		}
+
+		_, err := NewConfigFromMap(configMap)
+
+		req.Error(err)
+		req.Equal(fmt.Sprintf(TestValueMapStringErrorTemplate, "alt_server_certs[0].server_cert"), err.Error())
+	})
+
+	t.Run("errors on non-string alt server certificate", func(t *testing.T) {
+		req := require.New(t)
+
+		configMap := map[interface{}]interface{}{
+			"cert":        TestValueCert,
+			"key":         TestValueKey,
+			"server_cert": TestValueServerCert,
+			"server_key":  TestValueServerKey,
+			"ca":          TestValueCa,
+			"alt_server_certs": []any{
+				map[any]any{
+					"server_cert": 1,
+					"server_key":  TestValueAltServerKey01,
+				},
+			},
+		}
+
+		_, err := NewConfigFromMap(configMap)
+
+		req.Error(err)
+		req.Equal(fmt.Sprintf(TestValueMapStringErrorTemplate, "alt_server_certs[0].server_cert"), err.Error())
 	})
 }
 
