@@ -1,21 +1,20 @@
-name: build
-
+name: update-dependency
 on:
-  push:
-    branches:
-      - main
-      - release-*
-  pull_request:
   workflow_dispatch:
+    inputs:
+      updated-dependency:
+        description: The dependency that was updated
+        required: true
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/update-dependency'
     runs-on: ubuntu-latest
     steps:
       - name: Git Checkout
         uses: actions/checkout@v3
         with:
-          persist-credentials: false
+          fetch-depth: 0
 
       - name: Install Go
         uses: actions/setup-go@v2
@@ -25,16 +24,17 @@ jobs:
       - name: Install Ziti CI
         uses: netfoundry/ziti-ci@v1
 
-      - name: Build and Test
-        run: go test ./...
-
-      - name: Release
+      - name: Update Dependency
         env:
           gh_ci_key: ${{ secrets.GH_CI_KEY }}
           ziti_ci_gpg_key: ${{ secrets.ZITI_CI_GPG_KEY }}
           ziti_ci_gpg_key_id: ${{ secrets.ZITI_CI_GPG_KEY_ID }}
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release-')
         run: |
           $(go env GOPATH)/bin/ziti-ci configure-git
-          $(go env GOPATH)/bin/ziti-ci tag -v -f version
-          $(go env GOPATH)/bin/ziti-ci trigger-github-build openziti/transport update-dependency --token ${{ secrets.ZITI_CI_GH_TOKEN }}
+          $(go env GOPATH)/bin/ziti-ci update-go-dependency  ${{ github.event.inputs.updated-dependency }}
+
+      - name: Build and Test
+        run: go test ./... --tags apitests
+
+      - name: Complete Dependency Update
+        run: $(go env GOPATH)/bin/ziti-ci complete-update-go-dependency
