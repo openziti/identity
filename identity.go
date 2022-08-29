@@ -241,7 +241,7 @@ func (id *ID) startWatching() error {
 
 			case err, ok := <-watcher.Errors:
 				if err != nil {
-					logrus.Error("identity file watcher received an error [%v]", err)
+					logrus.Errorf("identity file watcher received an error [%v]", err)
 				}
 
 				if !ok {
