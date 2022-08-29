@@ -19,7 +19,6 @@ package certtools
 import (
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"io/ioutil"
 )
@@ -30,8 +29,11 @@ func LoadCert(pemBytes []byte) ([]*x509.Certificate, error) {
 	for len(pemBytes) > 0 {
 		keyBlock, pemBytes = pem.Decode(pemBytes)
 
+		//keyBlock is nil if there are no subsequent PEM blocks
+		//non-PEM data before blocks id treated as headers
+		//trailing data after last PEM (or when there are no PEMs) is ignored
 		if keyBlock == nil {
-			return nil, errors.New("could not parse")
+			break
 		}
 
 		switch keyBlock.Type {

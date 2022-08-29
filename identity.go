@@ -21,11 +21,15 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/fsnotify/fsnotify"
 	"github.com/openziti/foundation/v2/tlz"
 	"github.com/openziti/identity/certtools"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"sync"
+	"sync/atomic"
+	"time"
 )
 
 const (
@@ -40,6 +44,9 @@ type Identity interface {
 	ServerTLSConfig() *tls.Config
 	ClientTLSConfig() *tls.Config
 	Reload() error
+
+	WatchFiles() error
+	StopWatchingFiles()
 
 	SetCert(pem string) error
 	SetServerCert(pem string) error
@@ -57,6 +64,12 @@ type ID struct {
 	cert       *tls.Certificate
 	serverCert []*tls.Certificate
 	ca         *x509.CertPool
+
+	needsReload atomic.Bool
+	reloader    sync.Once
+	watcher     sync.Once
+	closeNotify chan struct{}
+	watchCount  atomic.Int32
 }
 
 // SetCert persists a new PEM as the ID's client certificate.
@@ -147,6 +160,109 @@ func (id *ID) Reload() error {
 	id.ca = newId.CA()
 	id.cert = newId.Cert()
 	id.serverCert = newId.ServerCert()
+
+	return nil
+}
+
+// getFiles returns all configuration paths that point to files
+func (id *ID) getFiles() []string {
+	var files []string
+	if path, ok := IsFile(id.Config.Cert); ok {
+		files = append(files, path)
+	}
+
+	if path, ok := IsFile(id.Config.ServerCert); ok {
+		files = append(files, path)
+	}
+
+	if path, ok := IsFile(id.Config.Key); ok {
+		files = append(files, path)
+	}
+
+	if path, ok := IsFile(id.Config.ServerKey); ok {
+		files = append(files, path)
+	}
+
+	for _, altServerCert := range id.Config.AltServerCerts {
+		if path, ok := IsFile(altServerCert.ServerKey); ok {
+			files = append(files, path)
+		}
+
+		if path, ok := IsFile(altServerCert.ServerCert); ok {
+			files = append(files, path)
+		}
+
+	}
+
+	return files
+}
+
+// StopWatchingFiles decrements the number of watchers. If zero is hit all watching is stopped.
+// If too many stops are called a panic will occur.
+func (id *ID) StopWatchingFiles() {
+	if count := id.watchCount.Add(-1); count == 0 {
+		close(id.closeNotify)
+	} else if count < 0 {
+		logrus.Panicf("StopWatchingFiles called when not watching count is %d", count)
+	}
+}
+
+// WatchFiles will increment the number of watchers. The first watcher will start a
+// file system watcher. WatchFiles should match with a StopWatchingFiles.
+func (id *ID) WatchFiles() error {
+	if id.watchCount.Add(1) == 1 {
+		return id.startWatching()
+	}
+
+	return nil
+}
+
+// startWatching starts an internal file watcher
+func (id *ID) startWatching() error {
+	id.closeNotify = make(chan struct{})
+	files := id.getFiles()
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					logrus.Error("identity file watcher received !ok from events, no further information")
+					return
+				}
+
+				logrus.Info("identity file watcher received event, queuing reload: " + event.String())
+				id.queueReload(id.closeNotify)
+
+			case err, ok := <-watcher.Errors:
+				if err != nil {
+					logrus.Error("identity file watcher received an error [%v]", err)
+				}
+
+				if !ok {
+					logrus.Error("identity file watcher received !ok from errors, no further information")
+					return
+				}
+			case <-id.closeNotify:
+				logrus.Info("identity file watcher closing")
+				return
+			}
+		}
+	}()
+
+	for _, file := range files {
+		err := watcher.Add(file)
+
+		if err != nil {
+			_ = watcher.Close()
+			close(id.closeNotify)
+		}
+	}
 
 	return nil
 }
@@ -274,6 +390,28 @@ func (id *ID) GetConfigForClient(config *tls.Config, _ *tls.ClientHelloInfo) (*t
 	return config, nil
 }
 
+// queueReload de-duplicates reload attempts within a 5s window.
+func (id *ID) queueReload(closeNotify <-chan struct{}) {
+	id.needsReload.Store(true)
+	id.reloader.Do(func() {
+		go func() {
+			for {
+				select {
+				case <-time.After(1 * time.Second):
+					if needsReload := id.needsReload.CompareAndSwap(true, false); needsReload {
+						logrus.Info("reloading identity configuration")
+						if err := id.Reload(); err != nil {
+							logrus.Errorf("could not reload identity configuration: %v", err)
+						}
+					}
+				case <-closeNotify:
+					return
+				}
+			}
+		}()
+	})
+}
+
 func LoadIdentity(cfg Config) (Identity, error) {
 	id := &ID{
 		Config: cfg,
@@ -385,6 +523,18 @@ func loadCert(certAddr string) ([]*x509.Certificate, error) {
 			return nil, fmt.Errorf("could not load cert, location scheme not supported (%s) or address not defined (%s)", certUrl.Scheme, certAddr)
 		}
 	}
+}
+
+// IsFile returns a file path from a given configuration value and true if the configuration value is a file. Otherwise
+// returns empty string and false.
+func IsFile(configValue string) (string, bool) {
+	if certUrl, err := parseAddr(configValue); err != nil {
+		return "", false
+	} else if certUrl.Scheme == StorageFile {
+		return certUrl.Path, true
+	}
+
+	return "", false
 }
 
 func loadCABundle(caAddr string) (*x509.CertPool, error) {
