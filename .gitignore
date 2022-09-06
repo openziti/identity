@@ -2,3 +2,5 @@
 build
 .DS_Store
 .vscode/
+go.work
+github_deploy_key
