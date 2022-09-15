@@ -67,7 +67,6 @@ type ID struct {
 
 	needsReload atomic.Bool
 	reloader    sync.Once
-	watcher     sync.Once
 	closeNotify chan struct{}
 	watchCount  atomic.Int32
 }
@@ -390,26 +389,23 @@ func (id *ID) GetConfigForClient(config *tls.Config, _ *tls.ClientHelloInfo) (*t
 	return config, nil
 }
 
-// queueReload de-duplicates reload attempts within a 5s window.
+// queueReload de-duplicates reload attempts within a 1s window.
 func (id *ID) queueReload(closeNotify <-chan struct{}) {
-	id.needsReload.Store(true)
-	id.reloader.Do(func() {
+	if newReload := id.needsReload.CompareAndSwap(false, true); newReload {
 		go func() {
-			for {
-				select {
-				case <-time.After(1 * time.Second):
-					if needsReload := id.needsReload.CompareAndSwap(true, false); needsReload {
-						logrus.Info("reloading identity configuration")
-						if err := id.Reload(); err != nil {
-							logrus.Errorf("could not reload identity configuration: %v", err)
-						}
+			select {
+			case <-time.After(1 * time.Second):
+				if stillNeedsReload := id.needsReload.CompareAndSwap(true, false); stillNeedsReload {
+					logrus.Info("reloading identity configuration")
+					if err := id.Reload(); err != nil {
+						logrus.Errorf("could not reload identity configuration: %v", err)
 					}
-				case <-closeNotify:
-					return
 				}
+			case <-closeNotify:
+				return
 			}
 		}()
-	})
+	}
 }
 
 func LoadIdentity(cfg Config) (Identity, error) {
