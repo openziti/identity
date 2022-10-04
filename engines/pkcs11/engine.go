@@ -1,3 +1,5 @@
+//go:build !no_pkcs11
+
 /*
 	Copyright NetFoundry Inc.
 
@@ -33,7 +35,7 @@ import (
 	"strconv"
 )
 
-const EngineId = "pkcs11"
+
 
 //
 // engine supporting generic PKCS#11 HSM driver
@@ -42,9 +44,10 @@ const EngineId = "pkcs11"
 // - `pkcs11:softhsm2?slot=0&id=2171` - driver id, driver will be loaded according to following rules:
 //                       driver id converted to OS specific library file name (on *nix `lib${driver}.so`)
 //                       then loaded according to dynamic loader configuration (on *nix according to http://man7.org/linux/man-pages/man3/dlopen.3.html)
-var Engine = &engine{}
+var e = &engine{}
 
-type engine struct {
+func GetEngine() interface{}  {
+	return e
 }
 
 var contexts = map[string]*pkcs11.Ctx{}
@@ -61,7 +64,7 @@ type p11Signer struct {
 	pub crypto.PublicKey
 }
 
-func (k *p11Signer) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+func (k *p11Signer) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
 
 	switch k.pub.(type) {
 	case *ecdsa.PublicKey:
@@ -244,7 +247,7 @@ func (*engine) LoadKey(key *url.URL) (crypto.PrivateKey, error) {
 	var pubKey crypto.PublicKey
 	var signMech *pkcs11.Mechanism
 	switch keyType {
-	case pkcs11.CKK_ECDSA:
+	case pkcs11.CKK_EC:
 		pubKey, err = loadECDSApub(ctx, session, pubHandle)
 		signMech, err = getECDSAmechanism(ctx, slotId, pubKey.(*ecdsa.PublicKey))
 
@@ -261,9 +264,6 @@ func (*engine) LoadKey(key *url.URL) (crypto.PrivateKey, error) {
 	return signer, nil
 }
 
-func (*engine) Id() string {
-	return EngineId
-}
 
 func getContext(driver string) (*pkcs11.Ctx, error) {
 	if ctx, ok := contexts[driver]; ok {

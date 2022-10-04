@@ -52,6 +52,7 @@ type ecdsaSig struct {
 
 func Test_softhsm2_keys(t *testing.T) {
 	pkcs11Lib := getPkcs11Lib()
+	eng := GetEngine().(*engine)
 
 	if _, err := os.Stat(pkcs11Lib); err != nil {
 		t.Logf("skipping %s: driver not found", t.Name())
@@ -73,7 +74,7 @@ func Test_softhsm2_keys(t *testing.T) {
 			t.Error(err)
 		}
 
-		key, err := Engine.LoadKey(k)
+		key, err := eng.LoadKey(k)
 		if err != nil {
 			t.Error(err)
 		} else {

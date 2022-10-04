@@ -32,7 +32,11 @@ type Engine interface {
 var engines = map[string]Engine{}
 
 func init() {
-	engines[pkcs11.EngineId] = pkcs11.Engine
+
+	if p11Engine, ok := pkcs11.GetEngine().(Engine); ok {
+		engines[p11Engine.Id()] = p11Engine
+	}
+
 	engines[parsec.EngineId] = parsec.Engine
 }
 
