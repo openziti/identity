@@ -25,7 +25,6 @@ import (
 	"github.com/openziti/foundation/v2/tlz"
 	"github.com/openziti/identity/certtools"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -66,7 +65,6 @@ type ID struct {
 	ca         *x509.CertPool
 
 	needsReload atomic.Bool
-	reloader    sync.Once
 	closeNotify chan struct{}
 	watchCount  atomic.Int32
 }
@@ -544,7 +542,7 @@ func loadCABundle(caAddr string) (*x509.CertPool, error) {
 			bundle = []byte(caUrl.Opaque)
 
 		case StorageFile, "":
-			if bundle, err = ioutil.ReadFile(caUrl.Path); err != nil {
+			if bundle, err = os.ReadFile(caUrl.Path); err != nil {
 				return nil, err
 			}
 

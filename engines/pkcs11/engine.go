@@ -35,18 +35,15 @@ import (
 	"strconv"
 )
 
-
-
-//
 // engine supporting generic PKCS#11 HSM driver
 // possible key URLs:
-// - `pkcs11:/usr/lib/softhsm/libsofthsm2.so?slot=0&id=2171` - full driver path
-// - `pkcs11:softhsm2?slot=0&id=2171` - driver id, driver will be loaded according to following rules:
-//                       driver id converted to OS specific library file name (on *nix `lib${driver}.so`)
-//                       then loaded according to dynamic loader configuration (on *nix according to http://man7.org/linux/man-pages/man3/dlopen.3.html)
+//   - `pkcs11:/usr/lib/softhsm/libsofthsm2.so?slot=0&id=2171` - full driver path
+//   - `pkcs11:softhsm2?slot=0&id=2171` - driver id, driver will be loaded according to following rules:
+//     driver id converted to OS specific library file name (on *nix `lib${driver}.so`)
+//     then loaded according to dynamic loader configuration (on *nix according to http://man7.org/linux/man-pages/man3/dlopen.3.html)
 var e = &engine{}
 
-func GetEngine() interface{}  {
+func GetEngine() interface{} {
 	return e
 }
 
@@ -249,11 +246,20 @@ func (*engine) LoadKey(key *url.URL) (crypto.PrivateKey, error) {
 	switch keyType {
 	case pkcs11.CKK_EC:
 		pubKey, err = loadECDSApub(ctx, session, pubHandle)
+		if err != nil {
+			return nil, err
+		}
 		signMech, err = getECDSAmechanism(ctx, slotId, pubKey.(*ecdsa.PublicKey))
+		if err != nil {
+			return nil, err
+		}
 
 	case pkcs11.CKK_RSA:
 		signMech = pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS, nil)
 		pubKey, err = loadRSApub(ctx, session, pubHandle)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("unsupported key type (%d)", keyType)
 	}
@@ -263,7 +269,6 @@ func (*engine) LoadKey(key *url.URL) (crypto.PrivateKey, error) {
 
 	return signer, nil
 }
-
 
 func getContext(driver string) (*pkcs11.Ctx, error) {
 	if ctx, ok := contexts[driver]; ok {

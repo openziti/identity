@@ -17,11 +17,10 @@
 package dotziti
 
 import (
-	"github.com/openziti/identity"
 	"errors"
 	"fmt"
+	"github.com/openziti/identity"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -46,7 +45,7 @@ func LoadIdentity(name string) (string, *identity.TokenId, error) {
 		return "", nil, err
 	}
 
-	data, err := ioutil.ReadFile(idPath)
+	data, err := os.ReadFile(idPath)
 	if err != nil {
 		return "", nil, err
 	}

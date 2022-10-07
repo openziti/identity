@@ -25,8 +25,8 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -66,7 +66,7 @@ func GetKey(eng *url.URL, file, newkey string) (crypto.PrivateKey, error) {
 	}
 
 	if file != "" {
-		if pemBytes, err := ioutil.ReadFile(file); err != nil {
+		if pemBytes, err := os.ReadFile(file); err != nil {
 			return nil, err
 		} else {
 			return LoadPrivateKey(pemBytes)
@@ -91,7 +91,7 @@ func SavePrivateKey(key crypto.PrivateKey, file string) error {
 
 	keyPem := &pem.Block{Type: t, Bytes: der}
 
-	return ioutil.WriteFile(file, pem.EncodeToMemory(keyPem), 0600)
+	return os.WriteFile(file, pem.EncodeToMemory(keyPem), 0600)
 }
 
 func LoadPrivateKey(pemBytes []byte) (crypto.PrivateKey, error) {
