@@ -20,7 +20,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+	"os"
 )
 
 func LoadCert(pemBytes []byte) ([]*x509.Certificate, error) {
@@ -52,7 +52,7 @@ func LoadCert(pemBytes []byte) ([]*x509.Certificate, error) {
 }
 
 func LoadCertFromFile(f string) ([]*x509.Certificate, error) {
-	if pemBytes, err := ioutil.ReadFile(f); err != nil {
+	if pemBytes, err := os.ReadFile(f); err != nil {
 		return nil, err
 	} else {
 		return LoadCert(pemBytes)

@@ -25,7 +25,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"testing"
@@ -60,6 +59,8 @@ func TestLoadIdentityWithPEM(t *testing.T) {
 	}
 
 	certDer, err := x509.CreateCertificate(rand.Reader, cert, cert, key.Public(), key)
+	assert.NoError(t, err)
+
 	certPem := &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: certDer,
@@ -232,7 +233,7 @@ func TestLoadIdentityWithFile(t *testing.T) {
 		Bytes: keyDer,
 	}
 
-	keyFile, _ := ioutil.TempFile(os.TempDir(), "test-key")
+	keyFile, _ := os.CreateTemp(os.TempDir(), "test-key")
 
 	defer os.Remove(keyFile.Name())
 
@@ -252,16 +253,21 @@ func TestLoadIdentityWithFile(t *testing.T) {
 	}
 
 	certDer, err := x509.CreateCertificate(rand.Reader, cert, cert, key.Public(), key)
+	assert.NoError(t, err)
+
 	certPem := &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: certDer,
 	}
 
-	certFile, _ := ioutil.TempFile(os.TempDir(), "test-cert")
+	certFile, _ := os.CreateTemp(os.TempDir(), "test-cert")
 	defer os.Remove(certFile.Name())
 
-	pem.Encode(keyFile, keyPem)
-	pem.Encode(certFile, certPem)
+	err = pem.Encode(keyFile, keyPem)
+	assert.NoError(t, err)
+
+	err = pem.Encode(certFile, certPem)
+	assert.NoError(t, err)
 
 	cfg := Config{
 		Key:  "file://" + keyFile.Name(),
