@@ -3,7 +3,7 @@ module github.com/openziti/identity
 go 1.18
 
 require (
-	github.com/fsnotify/fsnotify v1.5.4
+	github.com/fsnotify/fsnotify v1.6.0
 	github.com/michaelquigley/pfxlog v0.6.9
 	github.com/miekg/pkcs11 v1.1.1
 	github.com/openziti/foundation/v2 v2.0.6
@@ -24,7 +24,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	golang.org/x/net v0.0.0-20210813160813-60bc85c4be6d // indirect
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
+	golang.org/x/sys v0.0.0-20220908164124-27713097b956 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 )
