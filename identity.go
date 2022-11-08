@@ -24,6 +24,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/openziti/foundation/v2/tlz"
 	"github.com/openziti/identity/certtools"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"os"
 	"sync"
@@ -40,6 +41,7 @@ type Identity interface {
 	Cert() *tls.Certificate
 	ServerCert() []*tls.Certificate
 	CA() *x509.CertPool
+	CaPool() *CaPool
 	ServerTLSConfig() *tls.Config
 	ClientTLSConfig() *tls.Config
 	Reload() error
@@ -60,13 +62,27 @@ type ID struct {
 
 	certLock sync.RWMutex
 
-	cert       *tls.Certificate
-	serverCert []*tls.Certificate
-	ca         *x509.CertPool
-
+	cert        *tls.Certificate
+	serverCert  []*tls.Certificate
+	ca          *x509.CertPool
+	caPool      *CaPool
 	needsReload atomic.Bool
 	closeNotify chan struct{}
 	watchCount  atomic.Int32
+}
+
+func (id *ID) initCert(loadedCerts []*x509.Certificate) {
+	chain := loadedCerts
+
+	if id.caPool != nil {
+		chain = id.caPool.GetChainMinusRoot(loadedCerts[0], loadedCerts[1:]...)
+	}
+
+	id.cert.Certificate = make([][]byte, len(chain))
+	for i, c := range chain {
+		id.cert.Certificate[i] = c.Raw
+	}
+	id.cert.Leaf = chain[0]
 }
 
 // SetCert persists a new PEM as the ID's client certificate.
@@ -157,6 +173,7 @@ func (id *ID) Reload() error {
 	id.ca = newId.CA()
 	id.cert = newId.Cert()
 	id.serverCert = newId.ServerCert()
+	id.caPool = newId.CaPool()
 
 	return nil
 }
@@ -286,6 +303,14 @@ func (id *ID) CA() *x509.CertPool {
 	defer id.certLock.RUnlock()
 
 	return id.ca
+}
+
+// CaPool returns the ID's current CA certificate pool that can be used to build cert chains
+func (id *ID) CaPool() *CaPool {
+	id.certLock.RLock()
+	defer id.certLock.RUnlock()
+
+	return id.caPool
 }
 
 // ServerTLSConfig returns a new tls.Config instance that will delegate server certificate lookup to the current ID.
@@ -418,14 +443,17 @@ func LoadIdentity(cfg Config) (Identity, error) {
 		return nil, err
 	}
 
+	// CA bundle is optional, but can be used to fill in the client cert chain
+	if cfg.CA != "" {
+		if id.ca, id.caPool, err = loadCABundle(cfg.CA); err != nil {
+			return id, err
+		}
+	}
+
 	if idCert, err := loadCert(cfg.Cert); err != nil {
 		return id, err
 	} else {
-		id.cert.Certificate = make([][]byte, len(idCert))
-		for i, c := range idCert {
-			id.cert.Certificate[i] = c.Raw
-		}
-		id.cert.Leaf = idCert[0]
+		id.initCert(idCert)
 	}
 
 	// Server Cert is optional
@@ -476,13 +504,6 @@ func LoadIdentity(cfg Config) (Identity, error) {
 		}
 	}
 
-	// CA bundle is optional
-	if cfg.CA != "" {
-		if id.ca, err = loadCABundle(cfg.CA); err != nil {
-			return id, err
-		}
-	}
-
 	return id, nil
 }
 
@@ -519,8 +540,8 @@ func loadCert(certAddr string) ([]*x509.Certificate, error) {
 	}
 }
 
-// IsFile returns a file path from a given configuration value and true if the configuration value is a file. Otherwise
-// returns empty string and false.
+// IsFile returns a file path from a given configuration value and true if the configuration value is a file.
+// Otherwise, returns empty string and false.
 func IsFile(configValue string) (string, bool) {
 	if certUrl, err := parseAddr(configValue); err != nil {
 		return "", false
@@ -531,9 +552,9 @@ func IsFile(configValue string) (string, bool) {
 	return "", false
 }
 
-func loadCABundle(caAddr string) (*x509.CertPool, error) {
+func loadCABundle(caAddr string) (*x509.CertPool, *CaPool, error) {
 	if caUrl, err := parseAddr(caAddr); err != nil {
-		return nil, err
+		return nil, nil, err
 	} else {
 		pool := x509.NewCertPool()
 		var bundle []byte
@@ -543,13 +564,22 @@ func loadCABundle(caAddr string) (*x509.CertPool, error) {
 
 		case StorageFile, "":
 			if bundle, err = os.ReadFile(caUrl.Path); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 		default:
-			return nil, fmt.Errorf("NO valid Cert location specified")
+			return nil, nil, errors.Errorf("invalid cert location, unsupported scheme: '%v'", caAddr)
 		}
+
 		pool.AppendCertsFromPEM(bundle)
-		return pool, nil
+
+		certs, err := certtools.LoadCert(bundle)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		caPool := NewCaPool(certs)
+
+		return pool, caPool, nil
 	}
 }
