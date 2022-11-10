@@ -42,7 +42,7 @@ func (self *CaPool) GetChainMinusRoot(cert *x509.Certificate, extraCerts ...*x50
 
 	for _, extraCert := range extraCerts {
 		if !extraCert.IsCA {
-			return nil, errors.Errorf("found multiple leaf certs [%v and %v]", cert, extraCerts)
+			return nil, errors.Errorf("found multiple leaf certs [%v and %v]", cert.Subject.CommonName, extraCert.Subject.CommonName)
 		}
 	}
 

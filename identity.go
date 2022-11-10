@@ -352,6 +352,10 @@ func (id *ID) ServerTLSConfig() *tls.Config {
 // Generating multiple tls.Config's by calling this method will return tls.Config's that are all tied to this ID's
 // Config and client certificates.
 func (id *ID) ClientTLSConfig() *tls.Config {
+	if id.cert == nil {
+		return nil
+	}
+
 	tlsConfig := &tls.Config{
 		RootCAs: id.ca,
 	}
@@ -438,13 +442,17 @@ func (id *ID) queueReload(closeNotify <-chan struct{}) {
 func LoadIdentity(cfg Config) (Identity, error) {
 	id := &ID{
 		Config: cfg,
-		cert:   &tls.Certificate{},
 	}
 
 	var err error
-	id.cert.PrivateKey, err = LoadKey(cfg.Key)
-	if err != nil {
-		return nil, err
+
+	var defaultKey crypto.PrivateKey
+	if cfg.Key != "" {
+		var err error
+		defaultKey, err = LoadKey(cfg.Key)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// CA bundle is optional, but can be used to fill in the client cert chain
@@ -454,11 +462,21 @@ func LoadIdentity(cfg Config) (Identity, error) {
 		}
 	}
 
-	if idCert, err := loadCert(cfg.Cert); err != nil {
-		return nil, err
-	} else {
-		if err = id.initCert(idCert); err != nil {
+	if cfg.Cert != "" {
+		if defaultKey == nil {
+			return nil, errors.New("no key specified for identity cert")
+		}
+
+		id.cert = &tls.Certificate{
+			PrivateKey: defaultKey,
+		}
+
+		if idCert, err := loadCert(cfg.Cert); err != nil {
 			return nil, err
+		} else {
+			if err = id.initCert(idCert); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -467,12 +485,16 @@ func LoadIdentity(cfg Config) (Identity, error) {
 		if svrCert, err := loadCert(cfg.ServerCert); err != nil {
 			return nil, err
 		} else {
-			serverKey := id.cert.PrivateKey
+			var serverKey crypto.PrivateKey
 			if cfg.ServerKey != "" {
 				serverKey, err = LoadKey(cfg.ServerKey)
 				if err != nil {
 					return nil, err
 				}
+			} else if defaultKey != nil {
+				serverKey = defaultKey
+			} else {
+				return nil, errors.New("no corresponding key specified for identity server_cert")
 			}
 
 			chains, err := AssembleServerChains(svrCert)
@@ -491,12 +513,16 @@ func LoadIdentity(cfg Config) (Identity, error) {
 		if svrCert, err := loadCert(altCert.ServerCert); err != nil {
 			return nil, err
 		} else {
-			serverKey := id.cert.PrivateKey
+			var serverKey crypto.PrivateKey
 			if altCert.ServerKey != "" {
 				serverKey, err = LoadKey(altCert.ServerKey)
 				if err != nil {
 					return nil, err
 				}
+			} else if defaultKey != nil {
+				serverKey = defaultKey
+			} else {
+				return nil, errors.New("no key specified for identity alternate server cert")
 			}
 
 			chains, err := AssembleServerChains(svrCert)
