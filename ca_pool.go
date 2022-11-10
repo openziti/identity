@@ -52,8 +52,8 @@ func (self *CaPool) buildParentMap() {
 	}
 }
 
-func (self *CaPool) isRoot(cert *x509.Certificate) bool {
-	return bytes.Equal(cert.RawIssuer, cert.RawSubject)
+func (self *CaPool) isSelfSignedCA(cert *x509.Certificate) bool {
+	return cert.IsCA && cert.CheckSignatureFrom(cert) == nil
 }
 
 func (self *CaPool) GetChainMinusRoot(cert *x509.Certificate, extraCerts ...*x509.Certificate) []*x509.Certificate {
@@ -62,7 +62,7 @@ func (self *CaPool) GetChainMinusRoot(cert *x509.Certificate, extraCerts ...*x50
 
 	var next *x509.Certificate
 	for _, parent := range self.certs {
-		if parent.IsCA && parent != cert && cert.Issuer.CommonName == parent.Subject.CommonName && !self.isRoot(parent) {
+		if parent.IsCA && parent != cert && !self.isSelfSignedCA(parent) {
 			if err := cert.CheckSignatureFrom(parent); err == nil {
 				next = parent
 				break
@@ -75,7 +75,7 @@ func (self *CaPool) GetChainMinusRoot(cert *x509.Certificate, extraCerts ...*x50
 
 		for {
 			next = self.parents[next]
-			if next == nil || !next.IsCA || self.isRoot(next) {
+			if next == nil || !next.IsCA || self.isSelfSignedCA(next) {
 				break
 			}
 			result = append(result, next)
