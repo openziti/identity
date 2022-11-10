@@ -71,11 +71,14 @@ type ID struct {
 	watchCount  atomic.Int32
 }
 
-func (id *ID) initCert(loadedCerts []*x509.Certificate) {
+func (id *ID) initCert(loadedCerts []*x509.Certificate) error {
 	chain := loadedCerts
 
 	if id.caPool != nil {
-		chain = id.caPool.GetChainMinusRoot(loadedCerts[0], loadedCerts[1:]...)
+		var err error
+		if chain, err = id.caPool.GetChainMinusRoot(loadedCerts[0], loadedCerts[1:]...); err != nil {
+			return err
+		}
 	}
 
 	id.cert.Certificate = make([][]byte, len(chain))
@@ -83,6 +86,7 @@ func (id *ID) initCert(loadedCerts []*x509.Certificate) {
 		id.cert.Certificate[i] = c.Raw
 	}
 	id.cert.Leaf = chain[0]
+	return nil
 }
 
 // SetCert persists a new PEM as the ID's client certificate.
@@ -446,20 +450,22 @@ func LoadIdentity(cfg Config) (Identity, error) {
 	// CA bundle is optional, but can be used to fill in the client cert chain
 	if cfg.CA != "" {
 		if id.ca, id.caPool, err = loadCABundle(cfg.CA); err != nil {
-			return id, err
+			return nil, err
 		}
 	}
 
 	if idCert, err := loadCert(cfg.Cert); err != nil {
-		return id, err
+		return nil, err
 	} else {
-		id.initCert(idCert)
+		if err = id.initCert(idCert); err != nil {
+			return nil, err
+		}
 	}
 
 	// Server Cert is optional
 	if cfg.ServerCert != "" {
 		if svrCert, err := loadCert(cfg.ServerCert); err != nil {
-			return id, err
+			return nil, err
 		} else {
 			serverKey := id.cert.PrivateKey
 			if cfg.ServerKey != "" {
@@ -483,7 +489,7 @@ func LoadIdentity(cfg Config) (Identity, error) {
 	// Alt Server Cert is optional
 	for _, altCert := range cfg.AltServerCerts {
 		if svrCert, err := loadCert(altCert.ServerCert); err != nil {
-			return id, err
+			return nil, err
 		} else {
 			serverKey := id.cert.PrivateKey
 			if altCert.ServerKey != "" {

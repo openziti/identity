@@ -17,83 +17,63 @@
 package identity
 
 import (
-	"bytes"
 	"crypto/x509"
+	"github.com/pkg/errors"
 )
 
 type CaPool struct {
-	certs   []*x509.Certificate
-	parents map[*x509.Certificate]*x509.Certificate
+	certs []*x509.Certificate
 }
 
 func NewCaPool(certs []*x509.Certificate) *CaPool {
 	result := &CaPool{
-		certs:   certs,
-		parents: map[*x509.Certificate]*x509.Certificate{},
+		certs: certs,
 	}
-	result.buildParentMap()
 	return result
-}
-
-func (self *CaPool) buildParentMap() {
-	for _, cert := range self.certs {
-		if bytes.Equal(cert.RawIssuer, cert.RawSubject) {
-			continue
-		}
-
-		for _, parent := range self.certs {
-			if parent.IsCA && parent != cert && cert.Issuer.CommonName == parent.Subject.CommonName {
-				if err := cert.CheckSignatureFrom(parent); err == nil {
-					self.parents[cert] = parent
-					break
-				}
-			}
-		}
-	}
 }
 
 func (self *CaPool) isSelfSignedCA(cert *x509.Certificate) bool {
 	return cert.IsCA && cert.CheckSignatureFrom(cert) == nil
 }
 
-func (self *CaPool) GetChainMinusRoot(cert *x509.Certificate, extraCerts ...*x509.Certificate) []*x509.Certificate {
+func (self *CaPool) GetChainMinusRoot(cert *x509.Certificate, extraCerts ...*x509.Certificate) ([]*x509.Certificate, error) {
 	var result []*x509.Certificate
 	result = append(result, cert)
 
-	var next *x509.Certificate
-	for _, parent := range self.certs {
-		if parent.IsCA && parent != cert && !self.isSelfSignedCA(parent) {
-			if err := cert.CheckSignatureFrom(parent); err == nil {
-				next = parent
-				break
-			}
-		}
-	}
-
-	if next != nil {
-		result = append(result, next)
-
-		for {
-			next = self.parents[next]
-			if next == nil || !next.IsCA || self.isSelfSignedCA(next) {
-				break
-			}
-			result = append(result, next)
-		}
-	}
-
 	for _, extraCert := range extraCerts {
-		found := false
-		for _, existing := range result[1:] {
-			if bytes.Equal(extraCert.Raw, existing.Raw) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			result = append(result, extraCert)
+		if !extraCert.IsCA {
+			return nil, errors.Errorf("found multiple leaf certs [%v and %v]", cert, extraCerts)
 		}
 	}
 
-	return result
+	certs := map[*x509.Certificate]struct{}{}
+	self.addNonSelfSignedCasToCertsMap(certs, self.certs)
+	self.addNonSelfSignedCasToCertsMap(certs, extraCerts)
+
+	for {
+		if parent := self.getParent(cert, certs); parent != nil {
+			result = append(result, parent)
+			cert = parent
+		} else {
+			return result, nil
+		}
+	}
+}
+
+func (self *CaPool) addNonSelfSignedCasToCertsMap(certMap map[*x509.Certificate]struct{}, certs []*x509.Certificate) {
+	for _, cert := range certs {
+		if cert.IsCA && !self.isSelfSignedCA(cert) {
+			certMap[cert] = struct{}{}
+		}
+	}
+}
+
+func (self *CaPool) getParent(cert *x509.Certificate, certs map[*x509.Certificate]struct{}) *x509.Certificate {
+	for candidate := range certs {
+		if err := cert.CheckSignatureFrom(candidate); err == nil {
+			delete(certs, candidate)
+			return candidate
+		}
+	}
+	return nil
 }
