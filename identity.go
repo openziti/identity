@@ -75,10 +75,7 @@ func (id *ID) initCert(loadedCerts []*x509.Certificate) error {
 	chain := loadedCerts
 
 	if id.caPool != nil {
-		var err error
-		if chain, err = id.caPool.GetChainMinusRoot(loadedCerts[0], loadedCerts[1:]...); err != nil {
-			return err
-		}
+		chain = id.caPool.GetChainMinusRoot(loadedCerts[0], loadedCerts[1:]...)
 	}
 
 	id.cert.Certificate = make([][]byte, len(chain))

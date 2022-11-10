@@ -18,7 +18,6 @@ package identity
 
 import (
 	"crypto/x509"
-	"github.com/pkg/errors"
 )
 
 type CaPool struct {
@@ -36,15 +35,9 @@ func (self *CaPool) isSelfSignedCA(cert *x509.Certificate) bool {
 	return cert.IsCA && cert.CheckSignatureFrom(cert) == nil
 }
 
-func (self *CaPool) GetChainMinusRoot(cert *x509.Certificate, extraCerts ...*x509.Certificate) ([]*x509.Certificate, error) {
+func (self *CaPool) GetChainMinusRoot(cert *x509.Certificate, extraCerts ...*x509.Certificate) []*x509.Certificate {
 	var result []*x509.Certificate
 	result = append(result, cert)
-
-	for _, extraCert := range extraCerts {
-		if !extraCert.IsCA {
-			return nil, errors.Errorf("found multiple leaf certs [%v and %v]", cert.Subject.CommonName, extraCert.Subject.CommonName)
-		}
-	}
 
 	certs := map[*x509.Certificate]struct{}{}
 	self.addNonSelfSignedCasToCertsMap(certs, self.certs)
@@ -55,7 +48,7 @@ func (self *CaPool) GetChainMinusRoot(cert *x509.Certificate, extraCerts ...*x50
 			result = append(result, parent)
 			cert = parent
 		} else {
-			return result, nil
+			return result
 		}
 	}
 }

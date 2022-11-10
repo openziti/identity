@@ -32,8 +32,7 @@ func TestID_CaPoolGetChainDirectChild(t *testing.T) {
 	req.NoError(err)
 
 	pool := id.CaPool()
-	chain, err := pool.GetChainMinusRoot(id.Cert().Leaf)
-	req.NoError(err)
+	chain := pool.GetChainMinusRoot(id.Cert().Leaf)
 	req.Equal(1, len(chain))
 	req.Equal("client1", chain[0].Subject.CommonName)
 }
@@ -49,8 +48,7 @@ func TestID_CaPoolGetChainChildOnceRemoved(t *testing.T) {
 	req.NoError(err)
 
 	pool := id.CaPool()
-	chain, err := pool.GetChainMinusRoot(id.Cert().Leaf)
-	req.NoError(err)
+	chain := pool.GetChainMinusRoot(id.Cert().Leaf)
 	req.Equal(2, len(chain))
 	req.Equal("client2", chain[0].Subject.CommonName)
 	req.Equal("ctrl11", chain[1].Subject.CommonName)
@@ -67,8 +65,7 @@ func TestID_CaPoolGetChainChildTwiceRemoved(t *testing.T) {
 	req.NoError(err)
 
 	pool := id.CaPool()
-	chain, err := pool.GetChainMinusRoot(id.Cert().Leaf)
-	req.NoError(err)
+	chain := pool.GetChainMinusRoot(id.Cert().Leaf)
 	req.Equal(3, len(chain))
 	req.Equal("client3", chain[0].Subject.CommonName)
 	req.Equal("ctrl2", chain[1].Subject.CommonName)
