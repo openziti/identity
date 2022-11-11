@@ -86,7 +86,7 @@ func LoadClientIdentity(certPath, keyPath, caCertPath string) (*TokenId, error) 
 	}
 }
 
-func NewClientTokenIdentity(clientCert *x509.Certificate, privateKey crypto.PrivateKey, caCerts []*x509.Certificate) *TokenId {
+func NewClientTokenIdentity(clientCerts []*x509.Certificate, privateKey crypto.PrivateKey, caCerts []*x509.Certificate) *TokenId {
 	pool := x509.NewCertPool()
 
 	for _, ca := range caCerts {
@@ -97,13 +97,14 @@ func NewClientTokenIdentity(clientCert *x509.Certificate, privateKey crypto.Priv
 		Config:   Config{},
 		certLock: sync.RWMutex{},
 		cert: &tls.Certificate{
-			Certificate: [][]byte{
-				clientCert.Raw,
-			},
-			Leaf:       clientCert,
+			Leaf:       clientCerts[0],
 			PrivateKey: privateKey,
 		},
 		ca: pool,
+	}
+
+	for _, cert := range clientCerts {
+		id.cert.Certificate = append(id.cert.Certificate, cert.Raw)
 	}
 
 	return NewIdentity(id)
