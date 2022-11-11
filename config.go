@@ -76,7 +76,8 @@ func (config *Config) Validate() error {
 // provided for error messages when parsing deep or complex configuration.
 //
 // Example:
-//  `ValidateWithPathContext("my.path")`  errors would be formatted as "required configuration value [my.path.cert]..."`
+//
+//	`ValidateWithPathContext("my.path")`  errors would be formatted as "required configuration value [my.path.cert]..."`
 func (config *Config) ValidateWithPathContext(pathContext string) error {
 	pathContext = strings.TrimSpace(pathContext)
 
@@ -121,7 +122,8 @@ func (config *Config) ValidateForClient() error {
 // provided for error messages when parsing deep or complex configuration.
 //
 // Example:
-//  `ValidateForClientWithPathContext("my.path")`  errors would be formatted as "required configuration value [my.path.cert]..."`
+//
+//	`ValidateForClientWithPathContext("my.path")`  errors would be formatted as "required configuration value [my.path.cert]..."`
 func (config *Config) ValidateForClientWithPathContext(pathContext string) error {
 	pathContext = strings.TrimSpace(pathContext)
 
@@ -152,7 +154,8 @@ func (config *Config) ValidateForServer() error {
 // provided for error messages when parsing deep or complex configuration.
 //
 // Example:
-//  `ValidateWithPathContext("my.path")`  errors would be formatted as "required configuration value [my.path.cert]..."`
+//
+//	`ValidateWithPathContext("my.path")`  errors would be formatted as "required configuration value [my.path.cert]..."`
 func (config *Config) ValidateForServerWithPathContext(pathContext string) error {
 	pathContext = strings.TrimSpace(pathContext)
 
@@ -194,7 +197,8 @@ func NewConfigFromMap(identityMap map[interface{}]interface{}) (*Config, error) 
 // provided for error messages when parsing deep or complex configuration.
 //
 // Example:
-//  `NewConfigFromMapWithPathContext(myMap, "my.path")` errors would be formatted as "value [my.path.cert] must be a string"`
+//
+//	`NewConfigFromMapWithPathContext(myMap, "my.path")` errors would be formatted as "value [my.path.cert] must be a string"`
 func NewConfigFromMapWithPathContext(identityMap map[interface{}]interface{}, pathContext string) (*Config, error) {
 	pathContext = strings.TrimSpace(pathContext)
 

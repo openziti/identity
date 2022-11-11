@@ -24,6 +24,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/openziti/foundation/v2/tlz"
 	"github.com/openziti/identity/certtools"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"os"
 	"sync"
@@ -40,6 +41,7 @@ type Identity interface {
 	Cert() *tls.Certificate
 	ServerCert() []*tls.Certificate
 	CA() *x509.CertPool
+	CaPool() *CaPool
 	ServerTLSConfig() *tls.Config
 	ClientTLSConfig() *tls.Config
 	Reload() error
@@ -60,13 +62,28 @@ type ID struct {
 
 	certLock sync.RWMutex
 
-	cert       *tls.Certificate
-	serverCert []*tls.Certificate
-	ca         *x509.CertPool
-
+	cert        *tls.Certificate
+	serverCert  []*tls.Certificate
+	ca          *x509.CertPool
+	caPool      *CaPool
 	needsReload atomic.Bool
 	closeNotify chan struct{}
 	watchCount  atomic.Int32
+}
+
+func (id *ID) initCert(loadedCerts []*x509.Certificate) error {
+	chain := loadedCerts
+
+	if id.caPool != nil {
+		chain = id.caPool.GetChainMinusRoot(loadedCerts[0], loadedCerts[1:]...)
+	}
+
+	id.cert.Certificate = make([][]byte, len(chain))
+	for i, c := range chain {
+		id.cert.Certificate[i] = c.Raw
+	}
+	id.cert.Leaf = chain[0]
+	return nil
 }
 
 // SetCert persists a new PEM as the ID's client certificate.
@@ -157,6 +174,7 @@ func (id *ID) Reload() error {
 	id.ca = newId.CA()
 	id.cert = newId.Cert()
 	id.serverCert = newId.ServerCert()
+	id.caPool = newId.CaPool()
 
 	return nil
 }
@@ -288,6 +306,14 @@ func (id *ID) CA() *x509.CertPool {
 	return id.ca
 }
 
+// CaPool returns the ID's current CA certificate pool that can be used to build cert chains
+func (id *ID) CaPool() *CaPool {
+	id.certLock.RLock()
+	defer id.certLock.RUnlock()
+
+	return id.caPool
+}
+
 // ServerTLSConfig returns a new tls.Config instance that will delegate server certificate lookup to the current ID.
 // Calling Reload on the source ID will update which server certificate is used if the internal Config is altered
 // by calling Config or if the values the Config points to are altered (i.e. file update).
@@ -323,6 +349,10 @@ func (id *ID) ServerTLSConfig() *tls.Config {
 // Generating multiple tls.Config's by calling this method will return tls.Config's that are all tied to this ID's
 // Config and client certificates.
 func (id *ID) ClientTLSConfig() *tls.Config {
+	if id.cert == nil {
+		return nil
+	}
+
 	tlsConfig := &tls.Config{
 		RootCAs: id.ca,
 	}
@@ -409,36 +439,59 @@ func (id *ID) queueReload(closeNotify <-chan struct{}) {
 func LoadIdentity(cfg Config) (Identity, error) {
 	id := &ID{
 		Config: cfg,
-		cert:   &tls.Certificate{},
 	}
 
 	var err error
-	id.cert.PrivateKey, err = LoadKey(cfg.Key)
-	if err != nil {
-		return nil, err
+
+	var defaultKey crypto.PrivateKey
+	if cfg.Key != "" {
+		var err error
+		defaultKey, err = LoadKey(cfg.Key)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	if idCert, err := loadCert(cfg.Cert); err != nil {
-		return id, err
-	} else {
-		id.cert.Certificate = make([][]byte, len(idCert))
-		for i, c := range idCert {
-			id.cert.Certificate[i] = c.Raw
+	// CA bundle is optional, but can be used to fill in the client cert chain
+	if cfg.CA != "" {
+		if id.ca, id.caPool, err = loadCABundle(cfg.CA); err != nil {
+			return nil, err
 		}
-		id.cert.Leaf = idCert[0]
+	}
+
+	if cfg.Cert != "" {
+		if defaultKey == nil {
+			return nil, errors.New("no key specified for identity cert")
+		}
+
+		id.cert = &tls.Certificate{
+			PrivateKey: defaultKey,
+		}
+
+		if idCert, err := loadCert(cfg.Cert); err != nil {
+			return nil, err
+		} else {
+			if err = id.initCert(idCert); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// Server Cert is optional
 	if cfg.ServerCert != "" {
 		if svrCert, err := loadCert(cfg.ServerCert); err != nil {
-			return id, err
+			return nil, err
 		} else {
-			serverKey := id.cert.PrivateKey
+			var serverKey crypto.PrivateKey
 			if cfg.ServerKey != "" {
 				serverKey, err = LoadKey(cfg.ServerKey)
 				if err != nil {
 					return nil, err
 				}
+			} else if defaultKey != nil {
+				serverKey = defaultKey
+			} else {
+				return nil, errors.New("no corresponding key specified for identity server_cert")
 			}
 
 			chains, err := AssembleServerChains(svrCert)
@@ -455,14 +508,18 @@ func LoadIdentity(cfg Config) (Identity, error) {
 	// Alt Server Cert is optional
 	for _, altCert := range cfg.AltServerCerts {
 		if svrCert, err := loadCert(altCert.ServerCert); err != nil {
-			return id, err
+			return nil, err
 		} else {
-			serverKey := id.cert.PrivateKey
+			var serverKey crypto.PrivateKey
 			if altCert.ServerKey != "" {
 				serverKey, err = LoadKey(altCert.ServerKey)
 				if err != nil {
 					return nil, err
 				}
+			} else if defaultKey != nil {
+				serverKey = defaultKey
+			} else {
+				return nil, errors.New("no key specified for identity alternate server cert")
 			}
 
 			chains, err := AssembleServerChains(svrCert)
@@ -473,13 +530,6 @@ func LoadIdentity(cfg Config) (Identity, error) {
 
 			tlsCerts := ChainsToTlsCerts(chains, serverKey)
 			id.serverCert = append(id.serverCert, tlsCerts...)
-		}
-	}
-
-	// CA bundle is optional
-	if cfg.CA != "" {
-		if id.ca, err = loadCABundle(cfg.CA); err != nil {
-			return id, err
 		}
 	}
 
@@ -519,8 +569,8 @@ func loadCert(certAddr string) ([]*x509.Certificate, error) {
 	}
 }
 
-// IsFile returns a file path from a given configuration value and true if the configuration value is a file. Otherwise
-// returns empty string and false.
+// IsFile returns a file path from a given configuration value and true if the configuration value is a file.
+// Otherwise, returns empty string and false.
 func IsFile(configValue string) (string, bool) {
 	if certUrl, err := parseAddr(configValue); err != nil {
 		return "", false
@@ -531,9 +581,9 @@ func IsFile(configValue string) (string, bool) {
 	return "", false
 }
 
-func loadCABundle(caAddr string) (*x509.CertPool, error) {
+func loadCABundle(caAddr string) (*x509.CertPool, *CaPool, error) {
 	if caUrl, err := parseAddr(caAddr); err != nil {
-		return nil, err
+		return nil, nil, err
 	} else {
 		pool := x509.NewCertPool()
 		var bundle []byte
@@ -543,13 +593,22 @@ func loadCABundle(caAddr string) (*x509.CertPool, error) {
 
 		case StorageFile, "":
 			if bundle, err = os.ReadFile(caUrl.Path); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 		default:
-			return nil, fmt.Errorf("NO valid Cert location specified")
+			return nil, nil, errors.Errorf("invalid cert location, unsupported scheme: '%v'", caAddr)
 		}
+
 		pool.AppendCertsFromPEM(bundle)
-		return pool, nil
+
+		certs, err := certtools.LoadCert(bundle)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		caPool := NewCaPool(certs)
+
+		return pool, caPool, nil
 	}
 }
