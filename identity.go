@@ -18,6 +18,7 @@ package identity
 
 import (
 	"crypto"
+	"crypto/sha1"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -494,6 +495,7 @@ func LoadIdentity(cfg Config) (Identity, error) {
 				return nil, errors.New("no corresponding key specified for identity server_cert")
 			}
 
+			svrCert = getUniqueCerts(svrCert, id.caPool)
 			chains, err := AssembleServerChains(svrCert)
 
 			if err != nil {
@@ -534,6 +536,30 @@ func LoadIdentity(cfg Config) (Identity, error) {
 	}
 
 	return id, nil
+}
+
+func getUniqueCerts(certs []*x509.Certificate, pool *CaPool) []*x509.Certificate {
+	set := map[string]*x509.Certificate{}
+
+	addCerts := func(certs []*x509.Certificate) {
+		for _, cert := range certs {
+			hash := sha1.Sum(cert.Raw)
+			fp := string(hash[:])
+			set[fp] = cert
+		}
+	}
+
+	addCerts(certs)
+
+	if pool != nil {
+		addCerts(pool.certs)
+	}
+
+	var result []*x509.Certificate
+	for _, cert := range set {
+		result = append(result, cert)
+	}
+	return result
 }
 
 func LoadKey(keyAddr string) (crypto.PrivateKey, error) {
