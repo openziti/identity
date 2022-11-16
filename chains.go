@@ -32,8 +32,6 @@ func AssembleServerChains(certs []*x509.Certificate) ([][]*x509.Certificate, err
 
 	var chains [][]*x509.Certificate
 
-	skidToCert := map[string]*x509.Certificate{}
-
 	var serverCerts []*x509.Certificate
 
 	for _, cert := range certs {
@@ -50,24 +48,18 @@ func AssembleServerChains(certs []*x509.Certificate) ([][]*x509.Certificate, err
 				}
 			}
 		}
-
-		if len(cert.SubjectKeyId) != 0 {
-			skidToCert[string(cert.SubjectKeyId)] = cert
-		}
 	}
 
 	for _, serverCert := range serverCerts {
-		chain := buildChain(serverCert, skidToCert, certs)
+		chain := buildChain(serverCert, certs)
 		chains = append(chains, chain)
 	}
 
 	return chains, nil
 }
 
-// buildChain will build as much of a chain as possible from startingLeaf up. It will attempt to use Authority and
-// Subject Key Ids if possible. If not it will use subject string and signature checking.
-func buildChain(startingLeaf *x509.Certificate, skidToCert map[string]*x509.Certificate, certs []*x509.Certificate) []*x509.Certificate {
-
+// buildChain will build as much of a chain as possible from startingLeaf up using signature checking.
+func buildChain(startingLeaf *x509.Certificate, certs []*x509.Certificate) []*x509.Certificate {
 	var chain []*x509.Certificate
 
 	current := startingLeaf
@@ -82,26 +74,22 @@ func buildChain(startingLeaf *x509.Certificate, skidToCert map[string]*x509.Cert
 			}
 		}
 
-		//search by akid
-		if len(current.AuthorityKeyId) != 0 && string(current.AuthorityKeyId) != string(current.SubjectKeyId) {
-			if next, ok := skidToCert[string(current.AuthorityKeyId)]; ok {
-				current = next
-				continue
-			}
-		}
+		parentFound := false
 
-		//search by subject info and signing
+		//search by checking signature
 		for _, next := range certs {
-			if next.IsCA && next.Subject.String() == current.Issuer.String() {
+			if next.IsCA {
 				if err := current.CheckSignatureFrom(next); err == nil {
 					current = next
-					continue
+					parentFound = true
+					break
 				}
 			}
 		}
 
-		//no parent found
-		current = nil
+		if !parentFound {
+			current = nil
+		}
 	}
 
 	return chain
