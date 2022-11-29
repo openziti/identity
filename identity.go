@@ -23,11 +23,13 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/fsnotify/fsnotify"
+	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/foundation/v2/tlz"
 	"github.com/openziti/identity/certtools"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -381,7 +383,6 @@ func (id *ID) GetServerCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate
 	}
 
 	for _, cert := range id.serverCert {
-
 		if err := hello.SupportsCertificate(cert); err == nil {
 			return cert, nil
 		}
@@ -502,6 +503,16 @@ func LoadIdentity(cfg Config) (Identity, error) {
 				return nil, err
 			}
 
+			if strings.EqualFold("true", os.Getenv("ZT_DEBUG_CERTS")) {
+				log := pfxlog.Logger()
+				for i, chain := range chains {
+					for j, cert := range chain {
+						log.Infof("server cert [%v.%v] cn=%v isca=%v dns=%v ips=%v uris=%v", i, j,
+							cert.Subject.CommonName, cert.IsCA, cert.DNSNames, cert.IPAddresses, cert.URIs)
+					}
+				}
+			}
+
 			tlsCerts := ChainsToTlsCerts(chains, serverKey)
 			id.serverCert = append(id.serverCert, tlsCerts...)
 		}
@@ -540,12 +551,15 @@ func LoadIdentity(cfg Config) (Identity, error) {
 
 func getUniqueCerts(certs []*x509.Certificate, pool *CaPool) []*x509.Certificate {
 	set := map[string]*x509.Certificate{}
-
+	var keys []string // track insertion order so that server certs come before pool certs
 	addCerts := func(certs []*x509.Certificate) {
 		for _, cert := range certs {
 			hash := sha1.Sum(cert.Raw)
 			fp := string(hash[:])
-			set[fp] = cert
+			if _, exists := set[fp]; !exists {
+				set[fp] = cert
+				keys = append(keys, fp)
+			}
 		}
 	}
 
@@ -556,8 +570,8 @@ func getUniqueCerts(certs []*x509.Certificate, pool *CaPool) []*x509.Certificate
 	}
 
 	var result []*x509.Certificate
-	for _, cert := range set {
-		result = append(result, cert)
+	for _, key := range keys {
+		result = append(result, set[key])
 	}
 	return result
 }
