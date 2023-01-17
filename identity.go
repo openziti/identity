@@ -352,16 +352,21 @@ func (id *ID) ServerTLSConfig() *tls.Config {
 // Generating multiple tls.Config's by calling this method will return tls.Config's that are all tied to this ID's
 // Config and client certificates.
 func (id *ID) ClientTLSConfig() *tls.Config {
-	if id.cert == nil {
-		return nil
-	}
+	var tlsConfig *tls.Config = nil
 
-	tlsConfig := &tls.Config{
-		RootCAs: id.ca,
+	if id.ca != nil {
+		tlsConfig = &tls.Config{
+			RootCAs: id.ca,
+		}
 	}
+	if id.cert != nil {
+		if tlsConfig == nil {
+			tlsConfig = &tls.Config{}
+		}
 
-	tlsConfig.GetClientCertificate = func(info *tls.CertificateRequestInfo) (*tls.Certificate, error) {
-		return id.GetClientCertificate(tlsConfig, info)
+		tlsConfig.GetClientCertificate = func(info *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			return id.GetClientCertificate(tlsConfig, info)
+		}
 	}
 
 	return tlsConfig
