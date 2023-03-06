@@ -6,7 +6,7 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/michaelquigley/pfxlog v0.6.9
 	github.com/miekg/pkcs11 v1.1.1
-	github.com/openziti/foundation/v2 v2.0.15
+	github.com/openziti/foundation/v2 v2.0.16
 	github.com/parallaxsecond/parsec-client-go v0.0.0-20210416104105-e2d188152601
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.0
@@ -25,7 +25,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	golang.org/x/net v0.0.0-20210813160813-60bc85c4be6d // indirect
-	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/term v0.5.0 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 )
