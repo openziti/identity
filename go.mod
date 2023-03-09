@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/fsnotify/fsnotify v1.6.0
-	github.com/michaelquigley/pfxlog v0.6.9
+	github.com/michaelquigley/pfxlog v0.6.10
 	github.com/miekg/pkcs11 v1.1.1
 	github.com/openziti/foundation/v2 v2.0.18
 	github.com/parallaxsecond/parsec-client-go v0.0.0-20210416104105-e2d188152601
@@ -23,8 +23,7 @@ require (
 	github.com/onsi/ginkgo v1.16.4 // indirect
 	github.com/onsi/gomega v1.13.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
-	golang.org/x/net v0.0.0-20210813160813-60bc85c4be6d // indirect
+	golang.org/x/crypto v0.1.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/term v0.6.0 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
