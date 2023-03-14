@@ -93,6 +93,10 @@ func NewClientTokenIdentity(clientCerts []*x509.Certificate, privateKey crypto.P
 		pool.AddCert(ca)
 	}
 
+	return NewClientTokenIdentityWithPool(clientCerts, privateKey, pool)
+}
+
+func NewClientTokenIdentityWithPool(clientCerts []*x509.Certificate, privateKey crypto.PrivateKey, caPool *x509.CertPool) *TokenId {
 	id := &ID{
 		Config:   Config{},
 		certLock: sync.RWMutex{},
@@ -100,7 +104,7 @@ func NewClientTokenIdentity(clientCerts []*x509.Certificate, privateKey crypto.P
 			Leaf:       clientCerts[0],
 			PrivateKey: privateKey,
 		},
-		ca: pool,
+		ca: caPool,
 	}
 
 	for _, cert := range clientCerts {
