@@ -404,7 +404,7 @@ func LoadIdentity(cfg Config) (Identity, error) {
 			PrivateKey: defaultKey,
 		}
 
-		if idCert, err := loadCert(cfg.Cert); err != nil {
+		if idCert, err := LoadCert(cfg.Cert); err != nil {
 			return nil, err
 		} else {
 			if err = id.initCert(idCert); err != nil {
@@ -415,7 +415,7 @@ func LoadIdentity(cfg Config) (Identity, error) {
 
 	// Server Cert is optional
 	if cfg.ServerCert != "" {
-		if svrCert, err := loadCert(cfg.ServerCert); err != nil {
+		if svrCert, err := LoadCert(cfg.ServerCert); err != nil {
 			return nil, err
 		} else {
 			var serverKey crypto.PrivateKey
@@ -454,7 +454,7 @@ func LoadIdentity(cfg Config) (Identity, error) {
 
 	// Alt Server Cert is optional
 	for _, altCert := range cfg.AltServerCerts {
-		if svrCert, err := loadCert(altCert.ServerCert); err != nil {
+		if svrCert, err := LoadCert(altCert.ServerCert); err != nil {
 			return nil, err
 		} else {
 			var serverKey crypto.PrivateKey
@@ -510,6 +510,13 @@ func getUniqueCerts(certs []*x509.Certificate, pool *CaPool) []*x509.Certificate
 	return result
 }
 
+// LoadKey will inspect the string property from an identity configuration and attempt to load a private key
+// from there. The type of location is determined by a format with a type prefix followed by a colon. If no
+// known type prefix is present, it is assumed the entire value is a file path.
+//
+// Support Formats:
+// - `pem:<PEM>`
+// - `file:<PATH>`
 func LoadKey(keyAddr string) (crypto.PrivateKey, error) {
 	if keyUrl, err := parseAddr(keyAddr); err != nil {
 		return nil, err
@@ -528,7 +535,14 @@ func LoadKey(keyAddr string) (crypto.PrivateKey, error) {
 	}
 }
 
-func loadCert(certAddr string) ([]*x509.Certificate, error) {
+// LoadCert will inspect the string property from an identity configuration and attempt to load an array of *x509.Certificate
+// from there. The type of location is determined by a format with a type prefix followed by a colon. If no known type prefix is
+// present, it is assumed the entire value is a file path.
+//
+// Support Formats:
+// - `pem:<PEM>`
+// - `file:<PATH>`
+func LoadCert(certAddr string) ([]*x509.Certificate, error) {
 	if certUrl, err := parseAddr(certAddr); err != nil {
 		return nil, err
 	} else {
