@@ -17,13 +17,13 @@
 package identity
 
 import (
-	"github.com/openziti/identity/certtools"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"github.com/openziti/identity/engines"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"
@@ -69,12 +69,12 @@ func TestParseAddrPem(t *testing.T) {
 }
 
 func TestParseAddrEngine(t *testing.T) {
-	if len(certtools.ListEngines()) < 1 {
+	if len(engines.ListEngines()) < 1 {
 		t.Skip("No engine tests")
 	}
 
 	// setup
-	engine := certtools.ListEngines()[0]
+	engine := engines.ListEngines()[0]
 
 	engineBody := "some-driver?slot=0"
 	engineAddr := engine + "://" + engineBody

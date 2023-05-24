@@ -1,4 +1,4 @@
-//go:build no_pkcs11
+//go:build !pkcs11
 
 /*
 	Copyright NetFoundry Inc.
@@ -17,7 +17,3 @@
 */
 
 package pkcs11
-
-func GetEngine() interface{} {
-	return nil
-}
