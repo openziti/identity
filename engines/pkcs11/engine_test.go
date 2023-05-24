@@ -22,6 +22,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/asn1"
+	"github.com/openziti/identity/engines"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"net/url"
@@ -32,7 +33,7 @@ import (
 )
 
 const pin = "2171"
-const softHsmEnvVar ="SOFTHSM2_LIB"
+const softHsmEnvVar = "SOFTHSM2_LIB"
 
 func init() {
 	_ = os.Setenv("SOFTHSM2_CONF", "softhsm2.conf")
@@ -47,12 +48,17 @@ func genTestData(pin string) error {
 }
 
 type ecdsaSig struct {
-	R,S *big.Int
+	R, S *big.Int
 }
 
 func Test_softhsm2_keys(t *testing.T) {
 	pkcs11Lib := getPkcs11Lib()
-	eng := GetEngine().(*engine)
+	eng, found := engines.GetEngine(EngineId)
+
+	if !found {
+		t.Logf("skipping %s: enfgine[%s] not found", t.Name(), EngineId)
+		t.SkipNow()
+	}
 
 	if _, err := os.Stat(pkcs11Lib); err != nil {
 		t.Logf("skipping %s: driver not found", t.Name())
@@ -61,9 +67,9 @@ func Test_softhsm2_keys(t *testing.T) {
 
 	assert.NoError(t, genTestData(pin))
 
-	keys := map[string]string {
+	keys := map[string]string{
 		"prime256v1": "02",
-		"rsa:2048": "01",
+		"rsa:2048":   "01",
 	}
 
 	for n, id := range keys {
@@ -91,7 +97,7 @@ func test_signer(key crypto.PrivateKey, t *testing.T) {
 
 	pub := priv.Public()
 
-	bytes := make([]byte,32)
+	bytes := make([]byte, 32)
 	_, _ = rand.Read(bytes)
 
 	sig, err := priv.Sign(rand.Reader, bytes, crypto.SHA256)
@@ -125,4 +131,3 @@ func test_signer(key crypto.PrivateKey, t *testing.T) {
 		t.Errorf("bad pub key")
 	}
 }
-

@@ -19,41 +19,17 @@ package certtools
 import (
 	"crypto"
 	"fmt"
-	"github.com/openziti/identity/engines/parsec"
-	"github.com/openziti/identity/engines/pkcs11"
+	"github.com/openziti/identity/engines"
 	"net/url"
+
+	_ "github.com/openziti/identity/engines/parsec"
+	_ "github.com/openziti/identity/engines/pkcs11"
 )
-
-type Engine interface {
-	Id() string
-	LoadKey(key *url.URL) (crypto.PrivateKey, error)
-}
-
-var engines = map[string]Engine{}
-
-func init() {
-
-	if p11Engine, ok := pkcs11.GetEngine().(Engine); ok {
-		engines[p11Engine.Id()] = p11Engine
-	}
-
-	engines[parsec.EngineId] = parsec.Engine
-}
-
-func ListEngines() []string {
-	loadEngines()
-
-	res := make([]string, 0, len(engines))
-	for k := range engines {
-		res = append(res, k)
-	}
-	return res
-}
 
 func LoadEngineKey(engine string, addr *url.URL) (crypto.PrivateKey, error) {
 	loadEngines()
 
-	if eng, ok := engines[engine]; ok {
+	if eng, ok := engines.GetEngine(engine); ok {
 		return eng.LoadKey(addr)
 	} else {
 		return nil, fmt.Errorf("engine '%s' is not supported", engine)

@@ -6,6 +6,7 @@ import (
 	"crypto/elliptic"
 	"encoding/asn1"
 	"github.com/michaelquigley/pfxlog"
+	"github.com/openziti/identity/engines"
 	"github.com/parallaxsecond/parsec-client-go/parsec"
 	"github.com/parallaxsecond/parsec-client-go/parsec/algorithm"
 	"io"
@@ -16,8 +17,12 @@ import (
 
 const EngineId = "parsec"
 
-var Engine = &engine{}
+var parsecEngine = &engine{}
 var log = pfxlog.ContextLogger("parsec")
+
+func init() {
+	engines.RegisterEngine(parsecEngine)
+}
 
 type engine struct {
 	client *parsec.BasicClient
@@ -37,7 +42,7 @@ func (e *engine) LoadKey(key *url.URL) (crypto.PrivateKey, error) {
 	log.Infof("loadig key: %v", key)
 	keyName := key.Opaque
 
-	bc := Engine.getClient()
+	bc := e.getClient()
 
 	pubBytes, err := bc.PsaExportPublicKey(keyName)
 	if err != nil {
@@ -78,7 +83,7 @@ func (pk *parsecKey) Public() crypto.PublicKey {
 
 func (pk *parsecKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
 	log.Infof("key[%s] signing %d bytes", pk.name, len(digest))
-	bc := Engine.getClient()
+	bc := parsecEngine.getClient()
 	algo := algorithm.NewAsymmetricSignature().Ecdsa(algorithm.HashAlgorithmTypeSHA256).GetAsymmetricSignature()
 
 	sigBytes, err := bc.PsaSignHash(pk.name, digest, algo)

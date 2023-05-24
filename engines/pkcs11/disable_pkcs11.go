@@ -17,7 +17,3 @@
 */
 
 package pkcs11
-
-func GetEngine() interface{} {
-	return nil
-}

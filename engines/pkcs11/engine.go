@@ -29,11 +29,19 @@ import (
 	"fmt"
 	"github.com/michaelquigley/pfxlog"
 	"github.com/miekg/pkcs11"
+	"github.com/openziti/identity/engines"
 	"io"
 	"math/big"
 	"net/url"
 	"strconv"
 )
+
+type engine struct {
+}
+
+func (*engine) Id() string {
+	return EngineId
+}
 
 // engine supporting generic PKCS#11 HSM driver
 // possible key URLs:
@@ -43,8 +51,8 @@ import (
 //     then loaded according to dynamic loader configuration (on *nix according to http://man7.org/linux/man-pages/man3/dlopen.3.html)
 var e = &engine{}
 
-func GetEngine() interface{} {
-	return e
+func init() {
+	engines.RegisterEngine(e)
 }
 
 var contexts = map[string]*pkcs11.Ctx{}
