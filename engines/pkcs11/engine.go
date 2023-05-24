@@ -1,4 +1,4 @@
-//go:build !no_pkcs11
+//go:build pkcs11
 
 /*
 	Copyright NetFoundry Inc.
