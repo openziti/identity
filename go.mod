@@ -3,7 +3,7 @@ module github.com/openziti/identity
 go 1.19
 
 require (
-	github.com/fsnotify/fsnotify v1.6.0
+	github.com/fsnotify/fsnotify v1.7.0
 	github.com/michaelquigley/pfxlog v0.6.10
 	github.com/miekg/pkcs11 v1.1.1
 	github.com/openziti/foundation/v2 v2.0.33
