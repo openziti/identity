@@ -430,7 +430,7 @@ func LoadIdentity(cfg Config) (Identity, error) {
 				return nil, errors.New("no corresponding key specified for identity server_cert")
 			}
 
-			chains, err := AssembleServerChains(svrCert, id.caPool.certs)
+			chains, err := AssembleServerChains(svrCert, nil)
 
 			if err != nil {
 				return nil, err
