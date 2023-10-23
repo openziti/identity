@@ -430,8 +430,7 @@ func LoadIdentity(cfg Config) (Identity, error) {
 				return nil, errors.New("no corresponding key specified for identity server_cert")
 			}
 
-			svrCert = getUniqueCerts(svrCert, id.caPool)
-			chains, err := AssembleServerChains(svrCert)
+			chains, err := AssembleServerChains(svrCert, nil)
 
 			if err != nil {
 				return nil, err
@@ -469,7 +468,7 @@ func LoadIdentity(cfg Config) (Identity, error) {
 				return nil, errors.New("no key specified for identity alternate server cert")
 			}
 
-			chains, err := AssembleServerChains(svrCert)
+			chains, err := AssembleServerChains(svrCert, nil)
 
 			if err != nil {
 				return nil, err
@@ -483,11 +482,34 @@ func LoadIdentity(cfg Config) (Identity, error) {
 	return id, nil
 }
 
-func getUniqueCerts(certs []*x509.Certificate, pool *CaPool) []*x509.Certificate {
+// getUniqueCerts will return a slice of unique certificates from the given slice
+func getUniqueCerts(certs []*x509.Certificate) []*x509.Certificate {
 	set := map[string]*x509.Certificate{}
-	var keys []string // track insertion order so that server certs come before pool certs
-	addCerts := func(certs []*x509.Certificate) {
-		for _, cert := range certs {
+	var keys []string
+
+	for _, cert := range certs {
+		hash := sha1.Sum(cert.Raw)
+		fp := string(hash[:])
+		if _, exists := set[fp]; !exists {
+			set[fp] = cert
+			keys = append(keys, fp)
+		}
+	}
+
+	var result []*x509.Certificate
+	for _, key := range keys {
+		result = append(result, set[key])
+	}
+	return result
+}
+
+// getUniqueCas will return a slice of unique certificates that are CAs from the given slice
+func getUniqueCas(certs []*x509.Certificate) []*x509.Certificate {
+	set := map[string]*x509.Certificate{}
+	var keys []string
+
+	for _, cert := range certs {
+		if cert.IsCA {
 			hash := sha1.Sum(cert.Raw)
 			fp := string(hash[:])
 			if _, exists := set[fp]; !exists {
@@ -495,12 +517,6 @@ func getUniqueCerts(certs []*x509.Certificate, pool *CaPool) []*x509.Certificate
 				keys = append(keys, fp)
 			}
 		}
-	}
-
-	addCerts(certs)
-
-	if pool != nil {
-		addCerts(pool.certs)
 	}
 
 	var result []*x509.Certificate

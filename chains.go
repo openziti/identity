@@ -24,17 +24,25 @@ import (
 
 // AssembleServerChains takes in an array of certificates, finds all certificates with
 // x509.ExtKeyUsageAny or x509.ExtKeyUsageServerAuth and builds an array of leaf-first
-// chains.
-func AssembleServerChains(certs []*x509.Certificate) ([][]*x509.Certificate, error) {
+// chains. Chains are built starting from server authentication certificates found in `certs`
+// and the signer chains are built from `certs` and `cas`. Both slices are de-duped
+// and the `cas` slice is filtered for certificates with the CA flag set.
+func AssembleServerChains(certs []*x509.Certificate, cas []*x509.Certificate) ([][]*x509.Certificate, error) {
 	if len(certs) == 0 {
 		return nil, nil
 	}
+
+	certs = getUniqueCerts(certs)
 
 	var chains [][]*x509.Certificate
 
 	var serverCerts []*x509.Certificate
 
 	for _, cert := range certs {
+		//if we find CAs add them to the known CAs
+		if cert.IsCA {
+			cas = append(cas, cert)
+		}
 		//if not a CA and have any DNS/IP SANs
 		//primary lookup method is "a leaf with SANs"
 		if (!cert.IsCA) && (len(cert.DNSNames) != 0 || len(cert.IPAddresses) != 0) {
@@ -50,8 +58,10 @@ func AssembleServerChains(certs []*x509.Certificate) ([][]*x509.Certificate, err
 		}
 	}
 
+	cas = getUniqueCas(cas)
+
 	for _, serverCert := range serverCerts {
-		chain := buildChain(serverCert, certs)
+		chain := buildChain(serverCert, cas)
 		chains = append(chains, chain)
 	}
 
@@ -59,7 +69,7 @@ func AssembleServerChains(certs []*x509.Certificate) ([][]*x509.Certificate, err
 }
 
 // buildChain will build as much of a chain as possible from startingLeaf up using signature checking.
-func buildChain(startingLeaf *x509.Certificate, certs []*x509.Certificate) []*x509.Certificate {
+func buildChain(startingLeaf *x509.Certificate, cas []*x509.Certificate) []*x509.Certificate {
 	var chain []*x509.Certificate
 
 	current := startingLeaf
@@ -77,7 +87,7 @@ func buildChain(startingLeaf *x509.Certificate, certs []*x509.Certificate) []*x5
 		parentFound := false
 
 		//search by checking signature
-		for _, next := range certs {
+		for _, next := range cas {
 			if next.IsCA {
 				if err := current.CheckSignatureFrom(next); err == nil {
 					current = next

@@ -34,30 +34,39 @@ import (
 )
 
 func Test_Assemble(t *testing.T) {
-	t.Run("returns nil and no error on nil certs", func(t *testing.T) {
+	t.Run("returns nil and no error on nil certs and cas", func(t *testing.T) {
 		req := require.New(t)
 
-		ret, err := AssembleServerChains(nil)
+		ret, err := AssembleServerChains(nil, nil)
 
 		req.Nil(ret)
 		req.NoError(err)
 	})
 
-	t.Run("returns nil and no error on 0 certs", func(t *testing.T) {
+	t.Run("returns nil and no error on 0 certs and nil cas", func(t *testing.T) {
 		req := require.New(t)
 
-		ret, err := AssembleServerChains([]*x509.Certificate{})
+		ret, err := AssembleServerChains([]*x509.Certificate{}, nil)
 
 		req.Nil(ret)
 		req.NoError(err)
 	})
 
-	t.Run("returns 1 chain of 1 cert with 1 root given only 1 leaf all with AKIDs", func(t *testing.T) {
+	t.Run("returns nil and no error on nil certs and 0 cas", func(t *testing.T) {
+		req := require.New(t)
+
+		ret, err := AssembleServerChains(nil, []*x509.Certificate{})
+
+		req.Nil(ret)
+		req.NoError(err)
+	})
+
+	t.Run("returns 1 chain of 1 cert with 1 root given only 1 leaf all with AKIDs, nil cas", func(t *testing.T) {
 		req := require.New(t)
 		root := newRootCa()
 		leaf := root.NewLeafWithAKID()
 
-		ret, err := AssembleServerChains([]*x509.Certificate{leaf.cert})
+		ret, err := AssembleServerChains([]*x509.Certificate{leaf.cert}, nil)
 
 		req.NoError(err)
 		req.NotNil(ret)
@@ -66,7 +75,7 @@ func Test_Assemble(t *testing.T) {
 		req.Equal(ret[0][0], leaf.cert)
 	})
 
-	t.Run("returns 1 chain of 1 cert with 2 root given only 1 leaf with and without AKIDs", func(t *testing.T) {
+	t.Run("returns 1 chain of 1 cert with 2 root given only 1 leaf with and without AKIDs, nil cas", func(t *testing.T) {
 		req := require.New(t)
 		root := newRootCa()
 		leaf := root.NewLeafWithAKID()
@@ -74,7 +83,7 @@ func Test_Assemble(t *testing.T) {
 		root2 := newRootCa()
 		intermediate2 := root2.NewIntermediateWithoutAKID()
 
-		ret, err := AssembleServerChains([]*x509.Certificate{leaf.cert, root2.cert, intermediate2.cert})
+		ret, err := AssembleServerChains([]*x509.Certificate{leaf.cert, root2.cert, intermediate2.cert}, nil)
 
 		req.NoError(err)
 		req.NotNil(ret)
@@ -83,12 +92,12 @@ func Test_Assemble(t *testing.T) {
 		req.Equal(ret[0][0], leaf.cert)
 	})
 
-	t.Run("returns 1 chain of 1 cert with 1 root given only 1 leaf all without AKIDs", func(t *testing.T) {
+	t.Run("returns 1 chain of 1 cert with 1 root given only 1 leaf all without AKIDs, nil cas", func(t *testing.T) {
 		req := require.New(t)
 		root := newRootCa()
 		leaf := root.NewLeafWithoutAKID()
 
-		ret, err := AssembleServerChains([]*x509.Certificate{leaf.cert})
+		ret, err := AssembleServerChains([]*x509.Certificate{leaf.cert}, nil)
 
 		req.NoError(err)
 		req.NotNil(ret)
@@ -97,7 +106,7 @@ func Test_Assemble(t *testing.T) {
 		req.Equal(ret[0][0], leaf.cert)
 	})
 
-	t.Run("returns 2 chains for two different CAs all with AKIDs", func(t *testing.T) {
+	t.Run("returns 2 chains for two different CAs all with AKIDs, nil cas", func(t *testing.T) {
 		req := require.New(t)
 
 		root1 := newRootCa()
@@ -107,7 +116,7 @@ func Test_Assemble(t *testing.T) {
 		intermediate2 := root2.NewIntermediateWithAKID()
 		leaf2 := intermediate2.NewLeafWithAKID()
 
-		ret, err := AssembleServerChains([]*x509.Certificate{root1.cert, leaf1.cert, root2.cert, intermediate2.cert, leaf2.cert})
+		ret, err := AssembleServerChains([]*x509.Certificate{root1.cert, leaf1.cert, root2.cert, intermediate2.cert, leaf2.cert}, nil)
 
 		req.NoError(err)
 		req.NotNil(ret)
@@ -126,7 +135,7 @@ func Test_Assemble(t *testing.T) {
 		req.Equal(ret[1][2], root2.cert)
 	})
 
-	t.Run("returns 2 chains for two different CAs all without AKIDs", func(t *testing.T) {
+	t.Run("returns 2 chains for two different CAs all without AKIDs, nil cas", func(t *testing.T) {
 		req := require.New(t)
 
 		root1 := newRootCa()
@@ -136,7 +145,7 @@ func Test_Assemble(t *testing.T) {
 		intermediate2 := root2.NewIntermediateWithoutAKID()
 		leaf2 := intermediate2.NewLeafWithoutAKID()
 
-		ret, err := AssembleServerChains([]*x509.Certificate{root1.cert, leaf1.cert, root2.cert, intermediate2.cert, leaf2.cert})
+		ret, err := AssembleServerChains([]*x509.Certificate{root1.cert, leaf1.cert, root2.cert, intermediate2.cert, leaf2.cert}, nil)
 
 		req.NoError(err)
 		req.NotNil(ret)
@@ -155,7 +164,7 @@ func Test_Assemble(t *testing.T) {
 		req.Equal(ret[1][2], root2.cert)
 	})
 
-	t.Run("returns 1 chain for ca>intermediate>leaf + random intermediates and CAs with AKIDs", func(t *testing.T) {
+	t.Run("returns 1 chain for ca>intermediate>leaf + random intermediates and CAs with AKIDs, nil cas", func(t *testing.T) {
 		req := require.New(t)
 
 		root1 := newRootCa()
@@ -168,7 +177,7 @@ func Test_Assemble(t *testing.T) {
 		root3 := newRootCa()
 		intermediate3 := root3.NewIntermediateWithAKID()
 
-		ret, err := AssembleServerChains([]*x509.Certificate{root1.cert, intermediate1.cert, root2.cert, intermediate2.cert, leaf2.cert, intermediate3.cert})
+		ret, err := AssembleServerChains([]*x509.Certificate{root1.cert, intermediate1.cert, root2.cert, intermediate2.cert, leaf2.cert, intermediate3.cert}, nil)
 
 		req.NoError(err)
 		req.NotNil(ret)
@@ -181,14 +190,14 @@ func Test_Assemble(t *testing.T) {
 		req.Equal(ret[0][2], root2.cert)
 	})
 
-	t.Run("returns 1 chain ca>intermediate>leaf with mixed AKID/no AKID", func(t *testing.T) {
+	t.Run("returns 1 chain ca>intermediate>leaf with mixed AKID/no AKID, nil cas", func(t *testing.T) {
 		req := require.New(t)
 
 		root1 := newRootCa()
 		intermediate1 := root1.NewIntermediateWithoutAKID()
 		leaf1 := intermediate1.NewLeafWithAKID()
 
-		ret, err := AssembleServerChains([]*x509.Certificate{root1.cert, intermediate1.cert, leaf1.cert})
+		ret, err := AssembleServerChains([]*x509.Certificate{root1.cert, intermediate1.cert, leaf1.cert}, nil)
 
 		req.NoError(err)
 		req.NotNil(ret)
@@ -202,7 +211,71 @@ func Test_Assemble(t *testing.T) {
 		req.Equal(ret[0][2], root1.cert)
 	})
 
-	t.Run("can host a http server for 127.0.0.1 and localhost from two different certificates", func(t *testing.T) {
+	t.Run("returns 1 chain for ca>intermediate>leaf + random intermediates, leafs and CAs as cas", func(t *testing.T) {
+		req := require.New(t)
+
+		root1 := newRootCa()
+		intermediate1 := root1.NewIntermediateWithAKID()
+		leaf1 := intermediate1.NewLeafWithoutAKID()
+
+		root2 := newRootCa()
+		intermediate2 := root2.NewIntermediateWithAKID()
+		leaf2 := intermediate2.NewLeafWithAKID()
+
+		root3 := newRootCa()
+		intermediate3 := root3.NewIntermediateWithAKID()
+
+		ret, err := AssembleServerChains(
+			[]*x509.Certificate{leaf1.cert},
+			[]*x509.Certificate{root1.cert, intermediate1.cert, root2.cert, intermediate2.cert, leaf2.cert, intermediate3.cert})
+
+		req.NoError(err)
+		req.NotNil(ret)
+		req.Len(ret, 1)
+
+		// root1 -> leaf2
+		req.Len(ret[0], 3)
+		req.Equal(ret[0][0], leaf1.cert)
+		req.Equal(ret[0][1], intermediate1.cert)
+		req.Equal(ret[0][2], root1.cert)
+	})
+
+	t.Run("returns 2 chains for ca>intermediate>leaf + random intermediates, and CAs as cas", func(t *testing.T) {
+		req := require.New(t)
+
+		root1 := newRootCa()
+		intermediate1 := root1.NewIntermediateWithAKID()
+		leaf1 := intermediate1.NewLeafWithoutAKID()
+
+		root2 := newRootCa()
+		intermediate2 := root2.NewIntermediateWithAKID()
+		leaf2 := intermediate2.NewLeafWithAKID()
+
+		root3 := newRootCa()
+		intermediate3 := root3.NewIntermediateWithAKID()
+
+		ret, err := AssembleServerChains(
+			[]*x509.Certificate{leaf1.cert, leaf2.cert},
+			[]*x509.Certificate{root1.cert, intermediate1.cert, root2.cert, intermediate2.cert, intermediate3.cert})
+
+		req.NoError(err)
+		req.NotNil(ret)
+		req.Len(ret, 2)
+
+		// root1 -> leaf1
+		req.Len(ret[0], 3)
+		req.Equal(ret[0][0], leaf1.cert)
+		req.Equal(ret[0][1], intermediate1.cert)
+		req.Equal(ret[0][2], root1.cert)
+
+		// root2 -> leaf2
+		req.Len(ret[1], 3)
+		req.Equal(ret[1][0], leaf2.cert)
+		req.Equal(ret[1][1], intermediate2.cert)
+		req.Equal(ret[1][2], root2.cert)
+	})
+
+	t.Run("can host a http server for 127.0.0.1 and localhost from two different certificates, nil cas", func(t *testing.T) {
 		req := require.New(t)
 		root := newRootCa()
 
