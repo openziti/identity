@@ -485,7 +485,7 @@ func LoadIdentity(cfg Config) (Identity, error) {
 // getUniqueCerts will return a slice of unique certificates from the given slice
 func getUniqueCerts(certs []*x509.Certificate) []*x509.Certificate {
 	set := map[string]*x509.Certificate{}
-	var keys []string // track insertion order so that server certs come before pool certs
+	var keys []string
 
 	for _, cert := range certs {
 		hash := sha1.Sum(cert.Raw)
@@ -506,7 +506,7 @@ func getUniqueCerts(certs []*x509.Certificate) []*x509.Certificate {
 // getUniqueCas will return a slice of unique certificates that are CAs from the given slice
 func getUniqueCas(certs []*x509.Certificate) []*x509.Certificate {
 	set := map[string]*x509.Certificate{}
-	var keys []string // track insertion order so that server certs come before pool certs
+	var keys []string
 
 	for _, cert := range certs {
 		if cert.IsCA {
