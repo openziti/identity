@@ -102,6 +102,11 @@ func GetKey(eng *url.URL, file, newkey string) (crypto.PrivateKey, error) {
 func verifyExistingKey(file string, existingKey crypto.PrivateKey, newkey string) (crypto.PrivateKey, error) {
 	//desired type specified, verify it
 	specs := strings.Split(newkey, ":")
+
+	if len(specs) != 2 {
+		return nil, fmt.Errorf("invalid new key spec, got: %s, need: missing <[EC|RSA]]>:<[BitSize|Curve]>", newkey)
+	}
+
 	switch t := existingKey.(type) {
 	case *ecdsa.PrivateKey:
 		if specs[0] != "ec" {
