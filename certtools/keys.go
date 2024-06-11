@@ -135,7 +135,7 @@ func verifyExistingKey(file string, existingKey crypto.PrivateKey, newkey string
 		bitSize, err := strconv.Atoi(specs[1])
 
 		if err != nil {
-			return nil, fmt.Errorf("error parsing RSA bit size from new key value: %s", newkey)
+			return nil, fmt.Errorf("error parsing RSA bit size from new key spec, got: %s, need format of: <[EC|RSA]]>:<[BitSize|Curve]>", newkey)
 		}
 		if (t.PublicKey.Size() * 8) != bitSize {
 			return nil, fmt.Errorf("detected existing key [%s] but was of wrong bit size: %d, expected: %d", file, t.PublicKey.Size(), bitSize)
