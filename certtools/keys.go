@@ -104,7 +104,7 @@ func verifyExistingKey(file string, existingKey crypto.PrivateKey, newkey string
 	specs := strings.Split(newkey, ":")
 
 	if len(specs) != 2 {
-		return nil, fmt.Errorf("invalid new key spec, got: %s, need: missing <[EC|RSA]]>:<[BitSize|Curve]>", newkey)
+		return nil, fmt.Errorf("invalid new key spec, got: %s, need format of: <[EC|RSA]]>:<[BitSize|Curve]>", newkey)
 	}
 
 	switch t := existingKey.(type) {
