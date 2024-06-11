@@ -46,10 +46,33 @@ func init() {
 	}
 }
 
+// GetKey will attempt to load an engine key from `eng` if provided. If `eng` is `nil`, `file` and `newkey` will be
+// evaluated. `file` will be loaded; if the file does not exist a new key according to `newkey` will be created.
+// If it does exist, its key type (RSA bit size, EC curve) will cbe ompared to `newkey`. If the desired type does not
+// match the loaded type an error will be returned.
 func GetKey(eng *url.URL, file, newkey string) (crypto.PrivateKey, error) {
 	if eng != nil {
 		var engine = eng.Scheme
 		return LoadEngineKey(engine, eng)
+	}
+
+	var existingKey crypto.PrivateKey
+	if file != "" {
+		if pemBytes, err := os.ReadFile(file); err == nil {
+			existingKey, err = LoadPrivateKey(pemBytes)
+
+			if err != nil {
+				return nil, fmt.Errorf("detected existing key [%s] and failed to load it: %w", file, err)
+			}
+
+			//no type specified, return it
+			if newkey == "" {
+				return existingKey, nil
+			}
+
+			//verify that it matches what we want, otherwise error
+			return verifyExistingKey(file, existingKey, newkey)
+		}
 	}
 
 	if newkey != "" {
@@ -74,6 +97,40 @@ func GetKey(eng *url.URL, file, newkey string) (crypto.PrivateKey, error) {
 	}
 
 	return nil, fmt.Errorf("no key mechanism specified")
+}
+
+func verifyExistingKey(file string, existingKey crypto.PrivateKey, newkey string) (crypto.PrivateKey, error) {
+	//desired type specified, verify it
+	specs := strings.Split(newkey, ":")
+	switch t := existingKey.(type) {
+	case *ecdsa.PrivateKey:
+		if specs[0] != "ec" {
+			return nil, fmt.Errorf("detected existing key [%s] but was of the wrong type, expected an EC key", file)
+		}
+
+		if t.Curve != CURVES[specs[1]] {
+			return nil, fmt.Errorf("detected existing key [%s] but was of the wrong curve type: %s, expected: %s", file, t.Curve.Params().Name, specs[1])
+		}
+
+		return existingKey, nil
+
+	case *rsa.PrivateKey:
+		if specs[0] != "rsa" {
+			return nil, fmt.Errorf("detected existing key [%s] but was of the wrong type, expected an RSA key", file)
+		}
+		bitSize, err := strconv.Atoi(specs[1])
+
+		if err != nil {
+			return nil, fmt.Errorf("error parsing RSA bit size from new key value: %s", newkey)
+		}
+		if (t.PublicKey.Size() * 8) != bitSize {
+			return nil, fmt.Errorf("detected existing key [%s] but was of wrong bit size: %d, expected: %d", file, t.PublicKey.Size(), bitSize)
+		}
+
+		return existingKey, nil
+	default:
+		return nil, fmt.Errorf("detected existing key [%s] which is an unsupported type: %T", file, existingKey)
+	}
 }
 
 func SavePrivateKey(key crypto.PrivateKey, file string) error {
