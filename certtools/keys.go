@@ -72,7 +72,16 @@ func GetKey(eng *url.URL, file, newkey string) (crypto.PrivateKey, error) {
 
 			//verify that it matches what we want, otherwise error
 			return verifyExistingKey(file, existingKey, newkey)
+		} else if !os.IsNotExist(err) {
+			// if the error is anything but "does not exist" we do not know what to do.
+			return nil, fmt.Errorf("could not read file [%s]: %w", file, err)
 		}
+
+		if newkey == "" {
+			return nil, fmt.Errorf("no file found at [%s] but a new key spec was not provided", file)
+		}
+
+		//no file exists, but we have a key spec, will generate below
 	}
 
 	if newkey != "" {
