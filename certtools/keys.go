@@ -48,7 +48,7 @@ func init() {
 
 // GetKey will attempt to load an engine key from `eng` if provided. If `eng` is `nil`, `file` and `newkey` will be
 // evaluated. `file` will be loaded; if the file does not exist a new key according to `newkey` will be created.
-// If it does exist, its key type (RSA bit size, EC curve) will cbe ompared to `newkey`. If the desired type does not
+// If it does exist, its key type (RSA bit size, EC curve) will be compared to `newkey`. If the desired type does not
 // match the loaded type an error will be returned.
 func GetKey(eng *url.URL, file, newkey string) (crypto.PrivateKey, error) {
 	if eng != nil {
