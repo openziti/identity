@@ -35,6 +35,7 @@ func (self *CaPool) isSelfSignedCA(cert *x509.Certificate) bool {
 	return cert.IsCA && cert.CheckSignatureFrom(cert) == nil
 }
 
+// GetChainMinusRoot returns a chain from `cert` up to, but not including, the root CA if possible
 func (self *CaPool) GetChainMinusRoot(cert *x509.Certificate, extraCerts ...*x509.Certificate) []*x509.Certificate {
 	var result []*x509.Certificate
 	result = append(result, cert)
@@ -42,6 +43,30 @@ func (self *CaPool) GetChainMinusRoot(cert *x509.Certificate, extraCerts ...*x50
 	certs := map[*x509.Certificate]struct{}{}
 	self.addNonSelfSignedCasToCertsMap(certs, self.certs)
 	self.addNonSelfSignedCasToCertsMap(certs, extraCerts)
+
+	for {
+		if parent := self.getParent(cert, certs); parent != nil {
+			result = append(result, parent)
+			cert = parent
+		} else {
+			return result
+		}
+	}
+}
+
+// GetChain returns a chain from `cert` up and including the root CA if possible
+func (self *CaPool) GetChain(cert *x509.Certificate, extraCerts ...*x509.Certificate) []*x509.Certificate {
+	var result []*x509.Certificate
+	result = append(result, cert)
+
+	certs := map[*x509.Certificate]struct{}{}
+
+	for _, curCert := range self.certs {
+		certs[curCert] = struct{}{}
+	}
+	for _, curCert := range extraCerts {
+		certs[curCert] = struct{}{}
+	}
 
 	for {
 		if parent := self.getParent(cert, certs); parent != nil {
