@@ -151,9 +151,6 @@ func (self *CaPool) GetChain(cert *x509.Certificate, additionalCerts ...*x509.Ce
 		return nil
 	}
 
-	var result []*x509.Certificate
-	result = append(result, cert)
-
 	chainCandidates := self.allCasAsMap()
 
 	for _, curCert := range additionalCerts {
