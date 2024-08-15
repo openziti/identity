@@ -131,9 +131,6 @@ func (self *CaPool) GetChainMinusRoot(cert *x509.Certificate, additionalCerts ..
 		return nil
 	}
 
-	var result []*x509.Certificate
-	result = append(result, cert)
-
 	chainCandidates := self.intermediatesAsMap()
 
 	for _, curCert := range additionalCerts {
