@@ -21,6 +21,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"github.com/pkg/errors"
+	"time"
 )
 
 type CaPool struct {
@@ -161,6 +162,46 @@ func (self *CaPool) GetChain(cert *x509.Certificate, additionalCerts ...*x509.Ce
 	}
 
 	return assembleChain(cert, chainCandidates)
+}
+
+// VerifyToRoot will obtain a chain and verify it to a root CA. This is similar to the requirements that
+// OpenSSL has for TLS.
+func (self *CaPool) VerifyToRoot(cert *x509.Certificate) ([][]*x509.Certificate, error) {
+	if cert == nil {
+		return nil, errors.New("cannot verify a nil certificate")
+	}
+
+	opts := x509.VerifyOptions{
+		Intermediates: self.IntermediatesAsStdPool(),
+		Roots:         self.RootsAsStdPool(),
+		CurrentTime:   time.Now(),
+	}
+
+	return cert.Verify(opts)
+}
+
+// IntermediatesAsStdPool returns all intermediates in an *x509.CertPool. Useful for calling standard x509 package
+// functions.
+func (self *CaPool) IntermediatesAsStdPool() *x509.CertPool {
+	pool := x509.NewCertPool()
+
+	for _, cert := range self.intermediates {
+		pool.AddCert(cert)
+	}
+
+	return pool
+}
+
+// RootsAsStdPool returns all intermediates in an *x509.CertPool. Useful for calling standard x509 package
+// functions.
+func (self *CaPool) RootsAsStdPool() *x509.CertPool {
+	pool := x509.NewCertPool()
+
+	for _, cert := range self.roots {
+		pool.AddCert(cert)
+	}
+
+	return pool
 }
 
 // assembleChain starts at `startCert` and build the longest chain up through ancestor signing certs as it can from `chainCandidates`.

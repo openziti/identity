@@ -196,6 +196,39 @@ func TestCaPool(t *testing.T) {
 			req.Equal(pki.IntermediateA1.cert, chain[2])
 			req.Equal(pki.RootA.cert, chain[3])
 		})
+
+		t.Run("a chain can be built and verified from a nested intermediate", func(t *testing.T) {
+			req = require.New(t)
+
+			chains, err := pool.VerifyToRoot(pki.LeafA3.cert)
+
+			req.NoError(err)
+			req.Len(chains, 1)
+			req.Len(chains[0], 5)
+			req.Equal(chains[0][0], pki.LeafA3.cert)
+			req.Equal(chains[0][1], pki.IntermediateA3.cert)
+			req.Equal(chains[0][2], pki.IntermediateA2.cert)
+			req.Equal(chains[0][3], pki.IntermediateA1.cert)
+			req.Equal(chains[0][4], pki.RootA.cert)
+		})
+
+		t.Run("an error is returned attempting to verify a nil cert", func(t *testing.T) {
+			req = require.New(t)
+
+			chains, err := pool.VerifyToRoot(nil)
+
+			req.Error(err)
+			req.Nil(chains)
+		})
+
+		t.Run("an error is returned attempting to verify a leaf not in the pool", func(t *testing.T) {
+			req = require.New(t)
+
+			chains, err := pool.VerifyToRoot(pki.LeafC.cert)
+
+			req.Error(err)
+			req.Nil(chains)
+		})
 	})
 
 }
