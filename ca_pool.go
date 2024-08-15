@@ -43,6 +43,9 @@ func NewCaPool(certs []*x509.Certificate) *CaPool {
 // AddCa adds a CA (root or intermediate) certificate to the current pool. It returns an error if the
 // certificate is not CA.
 func (self *CaPool) AddCa(cert *x509.Certificate) error {
+	if cert == nil {
+		return errors.New("cannot add a nil certificate")
+	}
 	if !cert.IsCA {
 		return errors.New("x509 certificates does not have the CA flag set to true")
 	}
@@ -62,26 +65,23 @@ func (self *CaPool) AddCa(cert *x509.Certificate) error {
 func (self *CaPool) Roots() []*x509.Certificate {
 	rootsCopy := make([]*x509.Certificate, len(self.roots))
 
+	i := 0
 	for _, cert := range self.roots {
-		rootsCopy = append(rootsCopy, cert)
+		rootsCopy[i] = cert
+		i++
 	}
 
 	return rootsCopy
-}
-
-// NumCerts returns the number of certificates under management in this pool. Useful
-// for checking of the pools has been altered as certificate removal from the pool
-// is not supported.
-func (self *CaPool) NumCerts() int {
-	return len(self.intermediates) + len(self.roots)
 }
 
 // Intermediates returns a copy of the slice of currently added intermediates
 func (self *CaPool) Intermediates() []*x509.Certificate {
 	intermediatesCopy := make([]*x509.Certificate, len(self.intermediates))
 
-	for _, cert := range self.roots {
-		intermediatesCopy = append(intermediatesCopy, cert)
+	i := 0
+	for _, cert := range self.intermediates {
+		intermediatesCopy[i] = cert
+		i++
 	}
 
 	return intermediatesCopy
