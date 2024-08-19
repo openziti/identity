@@ -445,6 +445,7 @@ func newRootCa() *testCa {
 		ExtKeyUsage:           []x509.ExtKeyUsage{},
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		BasicConstraintsValid: true,
+		MaxPathLen:            -1,
 	}
 
 	rootBytes, err := x509.CreateCertificate(rand.Reader, root, root, &rootKey.PublicKey, rootKey)
@@ -488,8 +489,7 @@ func (ca *testCa) NewIntermediateWithAKID() *testCa {
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		BasicConstraintsValid: true,
 		AuthorityKeyId:        ca.cert.SubjectKeyId,
-		MaxPathLen:            0,
-		MaxPathLenZero:        true,
+		MaxPathLen:            5,
 	}
 
 	intermediateKey, err := rsa.GenerateKey(rand.Reader, 4096)
@@ -537,8 +537,7 @@ func (ca *testCa) NewIntermediateWithoutAKID() *testCa {
 		ExtKeyUsage:           []x509.ExtKeyUsage{},
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		BasicConstraintsValid: true,
-		MaxPathLen:            0,
-		MaxPathLenZero:        true,
+		MaxPathLen:            5,
 	}
 
 	intermediateKey, err := rsa.GenerateKey(rand.Reader, 4096)
