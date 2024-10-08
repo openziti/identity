@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 /*
@@ -33,11 +34,21 @@ func parseAddr(addr string) (*url.URL, error) {
 	// As of go 1.12, url.Parse returns an error when given URLs that contain control characters.
 	// https://golang.org/doc/go1.12#net/url
 	if strings.HasPrefix(addr, "pem:") || strings.HasPrefix(addr, "-----BEGIN") {
-		url := &url.URL{
+		ret := &url.URL{
 			Scheme: "pem",
 			Opaque: strings.TrimPrefix(addr, "pem:"),
 		}
-		return url, nil
+		return ret, nil
 	}
-	return url.Parse(addr)
+	urlParts, err := url.Parse(addr)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if urlParts.Scheme == "" {
+		urlParts.Scheme = StorageFile
+	}
+
+	return urlParts, nil
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -185,28 +186,28 @@ func (id *ID) Reload() error {
 func (id *ID) getFiles() []string {
 	var files []string
 	if path, ok := IsFile(id.Config.Cert); ok {
-		files = append(files, path)
+		files = append(files, filepath.Clean(path))
 	}
 
 	if path, ok := IsFile(id.Config.ServerCert); ok {
-		files = append(files, path)
+		files = append(files, filepath.Clean(path))
 	}
 
 	if path, ok := IsFile(id.Config.Key); ok {
-		files = append(files, path)
+		files = append(files, filepath.Clean(path))
 	}
 
 	if path, ok := IsFile(id.Config.ServerKey); ok {
-		files = append(files, path)
+		files = append(files, filepath.Clean(path))
 	}
 
 	for _, altServerCert := range id.Config.AltServerCerts {
 		if path, ok := IsFile(altServerCert.ServerKey); ok {
-			files = append(files, path)
+			files = append(files, filepath.Clean(path))
 		}
 
 		if path, ok := IsFile(altServerCert.ServerCert); ok {
-			files = append(files, path)
+			files = append(files, filepath.Clean(path))
 		}
 
 	}
