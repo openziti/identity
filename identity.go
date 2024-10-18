@@ -577,6 +577,11 @@ func LoadCert(certAddr string) ([]*x509.Certificate, error) {
 // IsFile returns a file path from a given configuration value and true if the configuration value is a file.
 // Otherwise, returns empty string and false.
 func IsFile(configValue string) (string, bool) {
+	configValue = strings.TrimSpace(configValue)
+	if configValue == "" {
+		return "", false
+	}
+
 	if certUrl, err := parseAddr(configValue); err != nil {
 		return "", false
 	} else if certUrl.Scheme == StorageFile {
