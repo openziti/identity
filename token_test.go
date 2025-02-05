@@ -44,9 +44,7 @@ const (
 // Helper to create a mock identity with certs
 func createMockIdentity(dnsNames []string, ipAddresses []string) *TokenId {
 	leaf := &x509.Certificate{}
-	for _, dns := range dnsNames {
-		leaf.DNSNames = append(leaf.DNSNames, dns)
-	}
+	leaf.DNSNames = append(leaf.DNSNames, dnsNames...)
 	for _, ip := range ipAddresses {
 		leaf.IPAddresses = append(leaf.IPAddresses, net.ParseIP(ip))
 	}
