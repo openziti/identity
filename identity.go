@@ -630,12 +630,36 @@ func (id *ID) ValidFor(address string) error {
 	return ValidFor(id, address)
 }
 
+// Define base errors
+var (
+	ErrInvalidAddress            = errors.New("invalid address")
+	ErrInvalidAddressForIdentity = errors.New("identity is not valid for provided host")
+)
+
+// Define a struct for detailed errors
+type AddressError struct {
+	BaseErr  error
+	Host     string
+	ValidFor []string
+}
+
+// Implement the error interface
+func (e *AddressError) Error() string {
+	return fmt.Sprintf("%s: [%s]. is valid for: [%s]", e.BaseErr.Error(), e.Host, strings.Join(e.ValidFor, ", "))
+}
+
+// Implement Unwrap to work with errors.Is
+func (e *AddressError) Unwrap() error {
+	return e.BaseErr
+}
+
+// ValidFor checks if the identity is valid for the given address
 func ValidFor(id Identity, address string) error {
 	address = strings.TrimPrefix(address, "tls:")
 
 	host, _, err := net.SplitHostPort(address)
 	if err != nil {
-		return fmt.Errorf("invalid address: %s", address)
+		return &AddressError{BaseErr: ErrInvalidAddress, Host: address, ValidFor: []string{}}
 	}
 
 	// Check server certificate
@@ -649,13 +673,13 @@ func ValidFor(id Identity, address string) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("identity is not valid for provided host: [%s]. is valid for: [%v]", host, getUniqueAddresses(id))
+		return &AddressError{BaseErr: ErrInvalidAddressForIdentity, Host: host, ValidFor: getUniqueAddresses(id)}
 	}
 	return nil
 }
 
 // getUniqueAddresses extracts unique DNS names and IP addresses from the identity's certificates
-func getUniqueAddresses(id Identity) string {
+func getUniqueAddresses(id Identity) []string {
 	addresses := make(map[string]struct{})
 
 	if certs := id.ServerCert(); len(certs) > 0 && certs[0].Leaf != nil {
@@ -682,5 +706,5 @@ func getUniqueAddresses(id Identity) string {
 	}
 	sort.Strings(uniqueList) // Ensure consistent order, mostly for testing
 
-	return strings.Join(uniqueList, ", ")
+	return uniqueList
 }

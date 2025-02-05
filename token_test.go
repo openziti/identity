@@ -3,6 +3,7 @@ package identity
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"github.com/stretchr/testify/require"
 	"net"
 	"testing"
@@ -66,132 +67,134 @@ func createMockIdentity(dnsNames []string, ipAddresses []string) *TokenId {
 func TestValidFor_ValidHostname(t *testing.T) {
 	id := createMockIdentity([]string{validDNS}, []string{})
 
-	err := id.ValidFor(validDNS + "aa:" + validPort)
-	if err != nil {
-		t.Errorf("Expected valid hostname, got error: %v", err)
-	}
+	err := id.ValidFor(validDNS + ":" + validPort)
+	require.NoError(t, err)
 }
 
 func TestValidFor_InvalidHostname(t *testing.T) {
 	id := createMockIdentity([]string{validDNS}, []string{})
 
 	err := id.ValidFor(invalidDNS + ":" + validPort)
-	if err == nil {
-		t.Fatalf("Expected error for invalid hostname, got nil")
+	require.True(t, errors.Is(err, ErrInvalidAddressForIdentity))
+	var addrErr *AddressError
+	if errors.As(err, &addrErr) {
+		require.Equal(t, addrErr.Host, invalidDNS)
+		require.Contains(t, addrErr.ValidFor, validDNS)
 	}
-	require.Equal(t, "identity is not valid for provided host: ["+invalidDNS+"]. is valid for: ["+validDNS+"]", err.Error())
 }
 
 func TestValidFor_ValidIPv4(t *testing.T) {
 	id := createMockIdentity([]string{}, []string{validIP4})
 
 	err := id.ValidFor(validIP4 + ":" + validPort)
-	if err != nil {
-		t.Errorf("Expected valid IP, got error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestValidFor_InvalidIPv4(t *testing.T) {
 	id := createMockIdentity([]string{}, []string{validIP4})
 
 	err := id.ValidFor(invalidIP4 + ":" + validPort)
-	if err == nil {
-		t.Fatalf("Expected error for invalid IP, got nil")
+	require.True(t, errors.Is(err, ErrInvalidAddressForIdentity))
+	var addrErr *AddressError
+	if errors.As(err, &addrErr) {
+		require.Equal(t, addrErr.Host, invalidIP4)
+		require.Contains(t, addrErr.ValidFor, validIP4)
 	}
-	require.Equal(t, "identity is not valid for provided host: ["+invalidIP4+"]. is valid for: ["+validIP4+"]", err.Error())
 }
 
 func TestValidFor_ValidIPv6(t *testing.T) {
 	id := createMockIdentity([]string{}, []string{validIP6})
 
 	err := id.ValidFor("[" + validIP6 + "]:" + validPort)
-	if err != nil {
-		t.Errorf("Expected valid IPv6, got error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestValidFor_InvalidIPv6(t *testing.T) {
 	id := createMockIdentity([]string{}, []string{validIP6})
 
 	err := id.ValidFor("[" + invalidIP6 + "]:" + validPort)
-	if err == nil {
-		t.Fatalf("Expected error for invalid IPv6, got nil")
+	require.True(t, errors.Is(err, ErrInvalidAddressForIdentity))
+	var addrErr *AddressError
+	if errors.As(err, &addrErr) {
+		require.Equal(t, addrErr.Host, invalidIP6)
+		require.Contains(t, addrErr.ValidFor, validIP6)
 	}
-	require.Equal(t, "identity is not valid for provided host: ["+invalidIP6+"]. is valid for: ["+validIP6+"]", err.Error())
 }
 
 func TestValidFor_ValidMixed(t *testing.T) {
 	id := createMockIdentity([]string{validDNS}, []string{validIP4})
 
 	err1 := id.ValidFor(validDNS + ":" + validPort)
+	require.NoError(t, err1)
 	err2 := id.ValidFor(validIP4 + ":" + validPort)
-
-	if err1 != nil {
-		t.Fatalf("Expected valid hostname, got error: %v", err1)
-	}
-	if err2 != nil {
-		t.Fatalf("Expected valid IP, got error: %v", err2)
-	}
+	require.NoError(t, err2)
 }
 
 func TestValidFor_InvalidMixed(t *testing.T) {
 	id := createMockIdentity([]string{validDNS}, []string{validIP4})
 
 	err1 := id.ValidFor(invalidDNS + ":" + validPort)
-	err2 := id.ValidFor(invalidIP4 + ":" + validPort)
+	require.True(t, errors.Is(err1, ErrInvalidAddressForIdentity))
+	var addrErr1 *AddressError
+	if errors.As(err1, &addrErr1) {
+		require.Equal(t, addrErr1.Host, invalidDNS)
+		require.Contains(t, addrErr1.ValidFor, validDNS)
+		require.Contains(t, addrErr1.ValidFor, validIP4)
+	}
 
-	if err1 == nil {
-		t.Fatalf("Expected error for invalid hostname, got nil")
+	err2 := id.ValidFor(invalidIP4 + ":" + validPort)
+	require.True(t, errors.Is(err2, ErrInvalidAddressForIdentity))
+	var addrErr2 *AddressError
+	if errors.As(err2, &addrErr2) {
+		require.Equal(t, addrErr2.Host, invalidIP4)
+		require.Contains(t, addrErr2.ValidFor, validDNS)
+		require.Contains(t, addrErr2.ValidFor, validIP4)
 	}
-	require.Equal(t, "identity is not valid for provided host: ["+invalidDNS+"]. is valid for: ["+validIP4+", "+validDNS+"]", err1.Error())
-	if err2 == nil {
-		t.Fatalf("Expected error for invalid IP, got nil")
-	}
-	require.Equal(t, "identity is not valid for provided host: ["+invalidIP4+"]. is valid for: ["+validIP4+", "+validDNS+"]", err2.Error())
 }
 
 func TestValidFor_NoCerts(t *testing.T) {
 	id := createMockIdentity([]string{}, []string{})
 
 	err := id.ValidFor(validDNS + ":" + validPort)
-	if err == nil {
-		t.Fatalf("Expected error for no valid certs, got nil")
+	require.True(t, errors.Is(err, ErrInvalidAddressForIdentity))
+	var addrErr *AddressError
+	if errors.As(err, &addrErr) {
+		require.Equal(t, addrErr.Host, validDNS)
+		require.Empty(t, addrErr.ValidFor)
 	}
-	require.Equal(t, "identity is not valid for provided host: ["+validDNS+"]. is valid for: []", err.Error())
 }
 
 func TestValidFor_ExpandedIPv6(t *testing.T) {
 	id := createMockIdentity([]string{}, []string{expandedIPv6})
 
 	err := id.ValidFor("[" + expandedIPv6 + "]:" + validPort)
-	if err != nil {
-		t.Errorf("Expected valid hostname, got error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestValidFor_CompressedIPv6(t *testing.T) {
 	id := createMockIdentity([]string{}, []string{compressedIPv6})
 
 	err := id.ValidFor("[" + compressedIPv6 + "]:" + validPort)
-	if err != nil {
-		t.Errorf("Expected valid hostname, got error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestValidFor_ExpandedIPv6_MatchesCompressed(t *testing.T) {
 	id := createMockIdentity([]string{}, []string{expandedIPv6})
 
 	err := id.ValidFor("[" + compressedIPv6 + "]:" + validPort)
-	if err != nil {
-		t.Errorf("Expected valid hostname, got error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestValidFor_CompressedIPv6_MatchesExpanded(t *testing.T) {
 	id := createMockIdentity([]string{}, []string{compressedIPv6})
 
 	err := id.ValidFor("[" + expandedIPv6 + "]:" + validPort)
-	if err != nil {
-		t.Errorf("Expected valid hostname, got error: %v", err)
-	}
+	require.NoError(t, err)
+}
+
+func TestValidFor_InvalidAddress(t *testing.T) {
+	id := createMockIdentity([]string{""}, []string{})
+
+	err := id.ValidFor("tls:" + validPort)
+	require.ErrorIs(t, err, ErrInvalidAddress)
 }
