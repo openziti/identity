@@ -29,6 +29,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -56,6 +57,7 @@ type Identity interface {
 	SetServerCert(pem string) error
 
 	GetConfig() *Config
+	ValidFor(hostnameOrIp string) error
 }
 
 var _ Identity = &ID{}
@@ -621,4 +623,80 @@ func loadCABundle(caAddr string) (*x509.CertPool, *CaPool, error) {
 
 		return pool, caPool, nil
 	}
+}
+
+func (id *ID) ValidFor(hostnameOrIp string) error {
+	return ValidFor(id, hostnameOrIp)
+}
+
+// Define base errors
+var (
+	ErrInvalidAddressForIdentity = errors.New("identity is not valid for provided host")
+)
+
+// Define a struct for detailed errors
+type AddressError struct {
+	BaseErr  error
+	Host     string
+	ValidFor []string
+}
+
+// Implement the error interface
+func (e *AddressError) Error() string {
+	return fmt.Sprintf("%s: [%s]. is valid for: [%s]", e.BaseErr.Error(), e.Host, strings.Join(e.ValidFor, ", "))
+}
+
+// Implement Unwrap to work with errors.Is
+func (e *AddressError) Unwrap() error {
+	return e.BaseErr
+}
+
+// ValidFor checks if the identity is valid for the given address
+func ValidFor(id Identity, hostnameOrIp string) error {
+	var err error
+	// Check server certificate
+	if len(id.ServerCert()) > 0 {
+		err = id.ServerCert()[0].Leaf.VerifyHostname(hostnameOrIp)
+	}
+
+	// Check client certificate if server cert validation fails
+	if err != nil && id.Cert() != nil && id.Cert().Leaf != nil {
+		err = id.Cert().Leaf.VerifyHostname(hostnameOrIp)
+	}
+
+	if err != nil {
+		return &AddressError{BaseErr: ErrInvalidAddressForIdentity, Host: hostnameOrIp, ValidFor: getUniqueAddresses(id)}
+	}
+	return nil
+}
+
+// getUniqueAddresses extracts unique DNS names and IP addresses from the identity's certificates
+func getUniqueAddresses(id Identity) []string {
+	addresses := make(map[string]struct{})
+
+	if certs := id.ServerCert(); len(certs) > 0 && certs[0].Leaf != nil {
+		for _, dns := range certs[0].Leaf.DNSNames {
+			addresses[dns] = struct{}{}
+		}
+		for _, ip := range certs[0].Leaf.IPAddresses {
+			addresses[ip.String()] = struct{}{}
+		}
+	}
+
+	if cert := id.Cert(); cert != nil && cert.Leaf != nil {
+		for _, dns := range cert.Leaf.DNSNames {
+			addresses[dns] = struct{}{}
+		}
+		for _, ip := range cert.Leaf.IPAddresses {
+			addresses[ip.String()] = struct{}{}
+		}
+	}
+
+	uniqueList := make([]string, 0, len(addresses))
+	for addr := range addresses {
+		uniqueList = append(uniqueList, addr)
+	}
+	sort.Strings(uniqueList) // Ensure consistent order, mostly for testing
+
+	return uniqueList
 }
