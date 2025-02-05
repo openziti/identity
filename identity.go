@@ -27,7 +27,6 @@ import (
 	"github.com/openziti/identity/certtools"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"net"
 	"os"
 	"path/filepath"
 	"sort"
@@ -632,7 +631,6 @@ func (id *ID) ValidFor(hostnameOrIp string) error {
 
 // Define base errors
 var (
-	ErrInvalidAddress            = errors.New("invalid address")
 	ErrInvalidAddressForIdentity = errors.New("identity is not valid for provided host")
 )
 
@@ -655,25 +653,19 @@ func (e *AddressError) Unwrap() error {
 
 // ValidFor checks if the identity is valid for the given address
 func ValidFor(id Identity, hostnameOrIp string) error {
-	hostnameOrIp = strings.TrimPrefix(hostnameOrIp, "tls:")
-
-	host, _, err := net.SplitHostPort(hostnameOrIp)
-	if err != nil {
-		return &AddressError{BaseErr: ErrInvalidAddress, Host: hostnameOrIp, ValidFor: []string{}}
-	}
-
+	var err error
 	// Check server certificate
 	if len(id.ServerCert()) > 0 {
-		err = id.ServerCert()[0].Leaf.VerifyHostname(host)
+		err = id.ServerCert()[0].Leaf.VerifyHostname(hostnameOrIp)
 	}
 
 	// Check client certificate if server cert validation fails
 	if err != nil && id.Cert() != nil && id.Cert().Leaf != nil {
-		err = id.Cert().Leaf.VerifyHostname(host)
+		err = id.Cert().Leaf.VerifyHostname(hostnameOrIp)
 	}
 
 	if err != nil {
-		return &AddressError{BaseErr: ErrInvalidAddressForIdentity, Host: host, ValidFor: getUniqueAddresses(id)}
+		return &AddressError{BaseErr: ErrInvalidAddressForIdentity, Host: hostnameOrIp, ValidFor: getUniqueAddresses(id)}
 	}
 	return nil
 }
