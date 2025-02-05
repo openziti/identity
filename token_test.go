@@ -212,3 +212,31 @@ func TestValidFor_InvalidAddress(t *testing.T) {
 	err := id.ValidFor("tls:" + validPort)
 	require.ErrorIs(t, err, ErrInvalidAddress)
 }
+
+func TestValidFor_Wildcard(t *testing.T) {
+	id := createMockIdentity([]string{"*." + validDNS}, []string{})
+
+	err := id.ValidFor("ctrl.example.com:" + validPort)
+	require.NoError(t, err)
+}
+
+func TestValidFor_Wildcard2(t *testing.T) {
+	id := createMockIdentity([]string{"*." + validDNS}, []string{})
+
+	err := id.ValidFor("other.example.com:" + validPort)
+	require.NoError(t, err)
+}
+
+func TestValidFor_NonWildcardAddlSubdomains(t *testing.T) {
+	id := createMockIdentity([]string{"*.another.domain." + validDNS}, []string{})
+
+	err := id.ValidFor("other.example.com:" + validPort)
+	require.ErrorIs(t, err, ErrInvalidAddressForIdentity)
+}
+
+func TestValidFor_NonWildcardCert(t *testing.T) {
+	id := createMockIdentity([]string{validDNS}, []string{})
+
+	err := id.ValidFor("ctrl.example.com:" + validPort)
+	require.ErrorIs(t, err, ErrInvalidAddressForIdentity)
+}
