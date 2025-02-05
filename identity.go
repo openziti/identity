@@ -27,8 +27,10 @@ import (
 	"github.com/openziti/identity/certtools"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"net"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -56,6 +58,7 @@ type Identity interface {
 	SetServerCert(pem string) error
 
 	GetConfig() *Config
+	ValidFor(address string) error
 }
 
 var _ Identity = &ID{}
@@ -621,4 +624,63 @@ func loadCABundle(caAddr string) (*x509.CertPool, *CaPool, error) {
 
 		return pool, caPool, nil
 	}
+}
+
+func (id *ID) ValidFor(address string) error {
+	return ValidFor(id, address)
+}
+
+func ValidFor(id Identity, address string) error {
+	address = strings.TrimPrefix(address, "tls:")
+
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return fmt.Errorf("invalid address: %s", address)
+	}
+
+	// Check server certificate
+	if len(id.ServerCert()) > 0 {
+		err = id.ServerCert()[0].Leaf.VerifyHostname(host)
+	}
+
+	// Check client certificate if server cert validation fails
+	if err != nil && id.Cert() != nil && id.Cert().Leaf != nil {
+		err = id.Cert().Leaf.VerifyHostname(host)
+	}
+
+	if err != nil {
+		return fmt.Errorf("identity is not valid for provided host: [%s]. is valid for: [%v]", host, getUniqueAddresses(id))
+	}
+	return nil
+}
+
+// getUniqueAddresses extracts unique DNS names and IP addresses from the identity's certificates
+func getUniqueAddresses(id Identity) string {
+	addresses := make(map[string]struct{})
+
+	if certs := id.ServerCert(); len(certs) > 0 && certs[0].Leaf != nil {
+		for _, dns := range certs[0].Leaf.DNSNames {
+			addresses[dns] = struct{}{}
+		}
+		for _, ip := range certs[0].Leaf.IPAddresses {
+			addresses[ip.String()] = struct{}{}
+		}
+	}
+
+	if cert := id.Cert(); cert != nil && cert.Leaf != nil {
+		for _, dns := range cert.Leaf.DNSNames {
+			addresses[dns] = struct{}{}
+		}
+		for _, ip := range cert.Leaf.IPAddresses {
+			addresses[ip.String()] = struct{}{}
+		}
+	}
+
+	uniqueList := make([]string, 0, len(addresses))
+	for addr := range addresses {
+		uniqueList = append(uniqueList, addr)
+	}
+	sort.Strings(uniqueList) // Ensure consistent order, mostly for testing
+
+	return strings.Join(uniqueList, ", ")
 }

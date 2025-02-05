@@ -33,14 +33,14 @@ type TokenId struct {
 
 func (i *TokenId) ClientTLSConfig() *tls.Config {
 	if i.Identity != nil {
-		return i.Identity.ClientTLSConfig()
+		return i.ClientTLSConfig()
 	}
 	return nil
 }
 
 func (i *TokenId) ServerTLSConfig() *tls.Config {
 	if i.Identity != nil {
-		return i.Identity.ServerTLSConfig()
+		return i.ServerTLSConfig()
 	}
 	return nil
 }
@@ -112,4 +112,8 @@ func NewClientTokenIdentityWithPool(clientCerts []*x509.Certificate, privateKey 
 	}
 
 	return NewIdentity(id)
+}
+
+func (id *TokenId) ValidFor(address string) error {
+	return ValidFor(id, address)
 }
