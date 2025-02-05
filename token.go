@@ -33,14 +33,14 @@ type TokenId struct {
 
 func (i *TokenId) ClientTLSConfig() *tls.Config {
 	if i.Identity != nil {
-		return i.ClientTLSConfig()
+		return i.Identity.ClientTLSConfig()
 	}
 	return nil
 }
 
 func (i *TokenId) ServerTLSConfig() *tls.Config {
 	if i.Identity != nil {
-		return i.ServerTLSConfig()
+		return i.Identity.ServerTLSConfig()
 	}
 	return nil
 }
