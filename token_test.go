@@ -3,7 +3,7 @@ package identity
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"net"
 	"testing"
 )
@@ -66,7 +66,7 @@ func createMockIdentity(dnsNames []string, ipAddresses []string) *TokenId {
 func TestValidFor_ValidHostname(t *testing.T) {
 	id := createMockIdentity([]string{validDNS}, []string{})
 
-	err := id.ValidFor(validDNS + ":" + validPort)
+	err := id.ValidFor(validDNS + "aa:" + validPort)
 	if err != nil {
 		t.Errorf("Expected valid hostname, got error: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestValidFor_InvalidHostname(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error for invalid hostname, got nil")
 	}
-	assert.Equal(t, "identity is not valid for provided host: ["+invalidDNS+"]. is valid for: ["+validDNS+"]", err.Error())
+	require.Equal(t, "identity is not valid for provided host: ["+invalidDNS+"]. is valid for: ["+validDNS+"]", err.Error())
 }
 
 func TestValidFor_ValidIPv4(t *testing.T) {
@@ -98,7 +98,7 @@ func TestValidFor_InvalidIPv4(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error for invalid IP, got nil")
 	}
-	assert.Equal(t, "identity is not valid for provided host: ["+invalidIP4+"]. is valid for: ["+validIP4+"]", err.Error())
+	require.Equal(t, "identity is not valid for provided host: ["+invalidIP4+"]. is valid for: ["+validIP4+"]", err.Error())
 }
 
 func TestValidFor_ValidIPv6(t *testing.T) {
@@ -117,7 +117,7 @@ func TestValidFor_InvalidIPv6(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error for invalid IPv6, got nil")
 	}
-	assert.Equal(t, "identity is not valid for provided host: ["+invalidIP6+"]. is valid for: ["+validIP6+"]", err.Error())
+	require.Equal(t, "identity is not valid for provided host: ["+invalidIP6+"]. is valid for: ["+validIP6+"]", err.Error())
 }
 
 func TestValidFor_ValidMixed(t *testing.T) {
@@ -143,11 +143,11 @@ func TestValidFor_InvalidMixed(t *testing.T) {
 	if err1 == nil {
 		t.Fatalf("Expected error for invalid hostname, got nil")
 	}
-	assert.Equal(t, "identity is not valid for provided host: ["+invalidDNS+"]. is valid for: ["+validIP4+", "+validDNS+"]", err1.Error())
+	require.Equal(t, "identity is not valid for provided host: ["+invalidDNS+"]. is valid for: ["+validIP4+", "+validDNS+"]", err1.Error())
 	if err2 == nil {
 		t.Fatalf("Expected error for invalid IP, got nil")
 	}
-	assert.Equal(t, "identity is not valid for provided host: ["+invalidIP4+"]. is valid for: ["+validIP4+", "+validDNS+"]", err2.Error())
+	require.Equal(t, "identity is not valid for provided host: ["+invalidIP4+"]. is valid for: ["+validIP4+", "+validDNS+"]", err2.Error())
 }
 
 func TestValidFor_NoCerts(t *testing.T) {
@@ -157,7 +157,7 @@ func TestValidFor_NoCerts(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error for no valid certs, got nil")
 	}
-	assert.Equal(t, "identity is not valid for provided host: ["+validDNS+"]. is valid for: []", err.Error())
+	require.Equal(t, "identity is not valid for provided host: ["+validDNS+"]. is valid for: []", err.Error())
 }
 
 func TestValidFor_ExpandedIPv6(t *testing.T) {
