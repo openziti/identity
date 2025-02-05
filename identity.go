@@ -58,7 +58,7 @@ type Identity interface {
 	SetServerCert(pem string) error
 
 	GetConfig() *Config
-	ValidFor(address string) error
+	ValidFor(hostnameOrIp string) error
 }
 
 var _ Identity = &ID{}
@@ -626,8 +626,8 @@ func loadCABundle(caAddr string) (*x509.CertPool, *CaPool, error) {
 	}
 }
 
-func (id *ID) ValidFor(address string) error {
-	return ValidFor(id, address)
+func (id *ID) ValidFor(hostnameOrIp string) error {
+	return ValidFor(id, hostnameOrIp)
 }
 
 // Define base errors
@@ -654,12 +654,12 @@ func (e *AddressError) Unwrap() error {
 }
 
 // ValidFor checks if the identity is valid for the given address
-func ValidFor(id Identity, address string) error {
-	address = strings.TrimPrefix(address, "tls:")
+func ValidFor(id Identity, hostnameOrIp string) error {
+	hostnameOrIp = strings.TrimPrefix(hostnameOrIp, "tls:")
 
-	host, _, err := net.SplitHostPort(address)
+	host, _, err := net.SplitHostPort(hostnameOrIp)
 	if err != nil {
-		return &AddressError{BaseErr: ErrInvalidAddress, Host: address, ValidFor: []string{}}
+		return &AddressError{BaseErr: ErrInvalidAddress, Host: hostnameOrIp, ValidFor: []string{}}
 	}
 
 	// Check server certificate
