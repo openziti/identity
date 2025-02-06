@@ -43,11 +43,11 @@ const (
 
 type Identity interface {
 
-	// Cert returns the current tls.Certificate linked to this identities's loaded certificates that is used for
+	// Cert returns the current tls.Certificate linked to this identity's loaded certificates that is used for
 	// client connections. The first certificate is always the cert` value loaded.
 	Cert() *tls.Certificate
 
-	// ServerCert returns the current tls.Certificate linked to this identities's loaded certificates that is used
+	// ServerCert returns the current tls.Certificate linked to this identity's loaded certificates that is used
 	// to initiate server listeners. The first certificate is always the root `cert` or `serverCert` value loaded.
 	// Alternative server certs follow.
 	ServerCert() []*tls.Certificate
@@ -66,7 +66,7 @@ type Identity interface {
 	// to the identity (i.e. reloads, updates) propagate to the returned tls.Config.
 	ClientTLSConfig() *tls.Config
 
-	// Reload reloads the identity. All changes are propogated to tls.Configs returend by ClientTLSConfig and ServerTLSConfig.
+	// Reload reloads the identity. All changes are propagated to tls.Configs returned by ClientTLSConfig and ServerTLSConfig.
 	Reload() error
 
 	// WatchFiles causes this identity to automatically watch its identity file and all referenced files for updates.
@@ -106,6 +106,8 @@ type Identity interface {
 	// CheckServerCertSansForConflicts checks the current leaf server certificate for duplicate IP/DNS SANs, which
 	// cause ambiguous SNI lookups. Returns nil if no errors.
 	CheckServerCertSansForConflicts() []SanHostConflictError
+
+	// ValidFor checks a hostname or IP against all available server certificates and their SANs.
 	ValidFor(hostnameOrIp string) error
 }
 
@@ -733,7 +735,7 @@ func LoadKey(keyAddr string) (crypto.PrivateKey, error) {
 		case StorageFile, "":
 			return certtools.GetKey(nil, keyUrl.Path, "")
 		default:
-			// engine key format: "{engine_id}:{engine_opts} see specific engine for supported options
+			// engine key format: "{engine_id}:{engine_opts}" see specific engine for supported options
 			return certtools.GetKey(keyUrl, "", "")
 			//return nil, fmt.Errorf("could not load key, location scheme not supported (%s) or address not defined (%s)", keyUrl.Scheme, keyAddr)
 		}
@@ -819,22 +821,23 @@ func (id *ID) ValidFor(hostnameOrIp string) error {
 
 // Define base errors
 var (
+	// ErrInvalidAddressForIdentity is returned during ip/hostname SANs validation. It represents that the ip/hostname
+	// is not present as a SAN in any available server certificates.
 	ErrInvalidAddressForIdentity = errors.New("identity is not valid for provided host")
 )
 
-// Define a struct for detailed errors
+// AddressError is returned during ip/hostname SANs validation. It represents that the ip/hostname is not present as
+// a SAN in any available server certificates.
 type AddressError struct {
 	BaseErr  error
 	Host     string
 	ValidFor []string
 }
 
-// Implement the error interface
 func (e *AddressError) Error() string {
 	return fmt.Sprintf("%s: [%s]. is valid for: [%s]", e.BaseErr.Error(), e.Host, strings.Join(e.ValidFor, ", "))
 }
 
-// Implement Unwrap to work with errors.Is
 func (e *AddressError) Unwrap() error {
 	return e.BaseErr
 }
