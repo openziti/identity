@@ -20,10 +20,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"github.com/openziti/identity"
 	"github.com/stretchr/testify/require"
 	"net"
 	"testing"
 )
+
+var _ identity.Identity = (*mockIdentity)(nil)
 
 // mockIdentity implements the Identity interface for testing
 type mockIdentity struct {
@@ -31,19 +34,25 @@ type mockIdentity struct {
 	clientCert  *tls.Certificate
 }
 
-func (m *mockIdentity) Cert() *tls.Certificate         { return m.clientCert }
-func (m *mockIdentity) ServerCert() []*tls.Certificate { return m.serverCerts }
-func (m *mockIdentity) CA() *x509.CertPool             { return nil }
-func (m *mockIdentity) CaPool() *CaPool                { return nil }
-func (m *mockIdentity) ServerTLSConfig() *tls.Config   { return nil }
-func (m *mockIdentity) ClientTLSConfig() *tls.Config   { return nil }
-func (m *mockIdentity) Reload() error                  { return nil }
-func (m *mockIdentity) WatchFiles() error              { return nil }
-func (m *mockIdentity) StopWatchingFiles()             {}
-func (m *mockIdentity) SetCert(_ string) error         { return nil }
-func (m *mockIdentity) SetServerCert(_ string) error   { return nil }
-func (m *mockIdentity) GetConfig() *Config             { return nil }
-func (m *mockIdentity) ValidFor(_ string) error        { return nil }
+func (m *mockIdentity) GetX509ActiveClientCertChain() []*x509.Certificate       { return nil }
+func (m *mockIdentity) GetX509ActiveServerCertChains() [][]*x509.Certificate    { return nil }
+func (m *mockIdentity) GetX509IdentityServerCertChain() []*x509.Certificate     { return nil }
+func (m *mockIdentity) GetX509IdentityAltCertCertChains() [][]*x509.Certificate { return nil }
+func (m *mockIdentity) GetCaPool() *CaPool                                      { return nil }
+func (m *mockIdentity) CheckServerCertSansForConflicts() []SanHostConflictError { return nil }
+func (m *mockIdentity) Cert() *tls.Certificate                                  { return m.clientCert }
+func (m *mockIdentity) ServerCert() []*tls.Certificate                          { return m.serverCerts }
+func (m *mockIdentity) CA() *x509.CertPool                                      { return nil }
+func (m *mockIdentity) CaPool() *CaPool                                         { return nil }
+func (m *mockIdentity) ServerTLSConfig() *tls.Config                            { return nil }
+func (m *mockIdentity) ClientTLSConfig() *tls.Config                            { return nil }
+func (m *mockIdentity) Reload() error                                           { return nil }
+func (m *mockIdentity) WatchFiles() error                                       { return nil }
+func (m *mockIdentity) StopWatchingFiles()                                      {}
+func (m *mockIdentity) SetCert(_ string) error                                  { return nil }
+func (m *mockIdentity) SetServerCert(_ string) error                            { return nil }
+func (m *mockIdentity) GetConfig() *Config                                      { return nil }
+func (m *mockIdentity) ValidFor(_ string) error                                 { return nil }
 
 const (
 	validDNS       = "example.com"
