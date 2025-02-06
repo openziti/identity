@@ -20,13 +20,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"github.com/openziti/identity"
 	"github.com/stretchr/testify/require"
 	"net"
 	"testing"
 )
 
-var _ identity.Identity = (*mockIdentity)(nil)
+var _ Identity = (*mockIdentity)(nil)
 
 // mockIdentity implements the Identity interface for testing
 type mockIdentity struct {
