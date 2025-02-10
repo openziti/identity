@@ -846,8 +846,11 @@ func (e *AddressError) Unwrap() error {
 func ValidFor(id Identity, hostnameOrIp string) error {
 	var err error
 	// Check server certificate
-	if len(id.ServerCert()) > 0 {
-		err = id.ServerCert()[0].Leaf.VerifyHostname(hostnameOrIp)
+	for _, c := range id.ServerCert() {
+		err = c.Leaf.VerifyHostname(hostnameOrIp)
+		if err == nil {
+			return nil
+		}
 	}
 
 	// Check client certificate if server cert validation fails
