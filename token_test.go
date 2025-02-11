@@ -247,3 +247,41 @@ func TestValidFor_NonWildcardCert(t *testing.T) {
 	err := id.ValidFor("ctrl.example.com")
 	require.ErrorIs(t, err, ErrInvalidAddressForIdentity)
 }
+
+func TestValidFor_ClientCertOnly(t *testing.T) {
+	leaf := &x509.Certificate{}
+	leaf.DNSNames = append(leaf.DNSNames, validDNS)
+	leaf.IPAddresses = append(leaf.IPAddresses, net.ParseIP(validIP4))
+	leaf.IPAddresses = append(leaf.IPAddresses, net.ParseIP(validIP6))
+
+	tlsCert := &tls.Certificate{Leaf: leaf}
+	mi := &mockIdentity{
+		serverCerts: []*tls.Certificate{tlsCert},
+		clientCert:  tlsCert,
+	}
+	id := &TokenId{
+		Identity: mi,
+		Token:    "",
+		Data:     nil,
+	}
+
+	require.NoError(t, id.ValidFor(validDNS))
+	require.NoError(t, id.ValidFor(validIP4))
+	require.NoError(t, id.ValidFor(validIP6))
+	require.ErrorIs(t, id.ValidFor(invalidDNS), ErrInvalidAddressForIdentity)
+}
+
+func TestValidFor_NoServerNoClient(t *testing.T) {
+	mi := &mockIdentity{
+		serverCerts: []*tls.Certificate{},
+		clientCert:  nil,
+	}
+	id := &TokenId{
+		Identity: mi,
+		Token:    "",
+		Data:     nil,
+	}
+
+	err := id.ValidFor("ctrl.example.com")
+	require.ErrorIs(t, err, ErrInvalidAddressForIdentity)
+}

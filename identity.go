@@ -861,6 +861,10 @@ func ValidFor(id Identity, hostnameOrIp string) error {
 	if err != nil {
 		return &AddressError{BaseErr: ErrInvalidAddressForIdentity, Host: hostnameOrIp, ValidFor: getUniqueAddresses(id)}
 	}
+	if len(id.ServerCert()) == 0 && id.Cert() == nil {
+		return &AddressError{BaseErr: ErrInvalidAddressForIdentity, Host: hostnameOrIp}
+	}
+
 	return nil
 }
 
