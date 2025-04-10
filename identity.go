@@ -291,7 +291,7 @@ func (id *ID) IsCertSettable() error {
 
 	switch certUrl.Scheme {
 	case StoragePem:
-		return errors.New("cannot save client cert in pem storage format")
+		return errors.New("cannot save cert in pem storage format")
 	case StorageFile, "":
 		absPath, err := filepath.Abs(id.Config.Cert)
 
@@ -300,15 +300,16 @@ func (id *ID) IsCertSettable() error {
 		}
 
 		f, err := os.OpenFile(absPath, os.O_RDWR, 0664)
+
 		if err != nil {
-			return fmt.Errorf("can not save client certificate [%s] due to file error: %v", absPath, err)
+			return fmt.Errorf("can not save cert certificate [%s] due to file error: %v", absPath, err)
 		}
 		defer func() { _ = f.Close() }()
 
 		return nil
 	}
 
-	return fmt.Errorf("can not save client certificate, location scheme not supported (%s) or address not defined (%s)", certUrl.Scheme, id.Config.Cert)
+	return fmt.Errorf("can not save cert certificate, location scheme not supported (%s) or address not defined (%s)", certUrl.Scheme, id.Config.Cert)
 }
 
 func (id *ID) IsServerCertSettable() error {
@@ -325,10 +326,11 @@ func (id *ID) IsServerCertSettable() error {
 		absPath, err := filepath.Abs(id.Config.ServerCert)
 
 		if err != nil {
-			return fmt.Errorf("cannot get absolute path for server cert file %s: %w", id.Config.Cert, err)
+			return fmt.Errorf("cannot get absolute path for server cert file %s: %w", id.Config.ServerCert, err)
 		}
 
 		f, err := os.OpenFile(absPath, os.O_RDWR, 0664)
+
 		if err != nil {
 			return fmt.Errorf("can not save server certificate [%s] due to file error: %v", absPath, err)
 		}
@@ -337,7 +339,7 @@ func (id *ID) IsServerCertSettable() error {
 		return nil
 	}
 
-	return fmt.Errorf("can not save server certificate, location scheme not supported (%s) or address not defined (%s)", certUrl.Scheme, id.Config.Cert)
+	return fmt.Errorf("can not save server certificate, location scheme not supported (%s) or address not defined (%s)", certUrl.Scheme, id.Config.ServerCert)
 }
 
 // SetCert persists a new PEM as the ID's client certificate.
@@ -351,14 +353,18 @@ func (id *ID) SetCert(pemStr string) error {
 	switch certUrl.Scheme {
 	case StoragePem:
 		id.Config.Cert = StoragePem + ":" + pemStr
-		return fmt.Errorf("could not save client certificate, location scheme not supported for saving (%s):\n%s", id.Config.Cert, pemStr)
+		return fmt.Errorf("could not save cert certificate, location scheme not supported for saving (%s):\n%s", id.Config.Cert, pemStr)
 	case StorageFile, "":
 
 		absPath, err := filepath.Abs(id.Config.Cert)
 
+		if err != nil {
+			return fmt.Errorf("cannot get absolute path for cert file %s: %w", id.Config.Cert, err)
+		}
+
 		f, err := os.OpenFile(absPath, os.O_RDWR, 0664)
 		if err != nil {
-			return fmt.Errorf("could not update client certificate [%s]: %v", id.Config.Cert, err)
+			return fmt.Errorf("could not update cert certificate [%s]: %v", id.Config.Cert, err)
 		}
 
 		defer func() { _ = f.Close() }()
@@ -366,16 +372,16 @@ func (id *ID) SetCert(pemStr string) error {
 		err = f.Truncate(0)
 
 		if err != nil {
-			return fmt.Errorf("could not truncate client certificate [%s]: %v", id.Config.Cert, err)
+			return fmt.Errorf("could not truncate cert certificate [%s]: %v", id.Config.Cert, err)
 		}
 
 		_, err = fmt.Fprint(f, pemStr)
 
 		if err != nil {
-			return fmt.Errorf("error writing new client certificate [%s]: %v", id.Config.Cert, err)
+			return fmt.Errorf("error writing new cert certificate [%s]: %v", id.Config.Cert, err)
 		}
 	default:
-		return fmt.Errorf("could not save client certificate, location scheme not supported (%s) or address not defined (%s):\n%s", certUrl.Scheme, id.Config.Cert, pemStr)
+		return fmt.Errorf("could not save cert certificate, location scheme not supported (%s) or address not defined (%s):\n%s", certUrl.Scheme, id.Config.Cert, pemStr)
 	}
 
 	return nil
@@ -391,10 +397,14 @@ func (id *ID) SetServerCert(pem string) error {
 	switch certUrl.Scheme {
 	case StoragePem:
 		id.Config.ServerCert = StoragePem + ":" + pem
-		return fmt.Errorf("could not save client certificate, location scheme not supported for saving (%s): \n %s", id.Config.Cert, pem)
+		return fmt.Errorf("could not save server certificate, location scheme not supported for saving (%s): \n %s", id.Config.ServerKey, pem)
 	case StorageFile, "":
 
 		absPath, err := filepath.Abs(id.Config.ServerCert)
+
+		if err != nil {
+			return fmt.Errorf("cannot get absolute path for server cert file %s: %w", id.Config.ServerCert, err)
+		}
 
 		f, err := os.OpenFile(absPath, os.O_RDWR, 0664)
 		if err != nil {
