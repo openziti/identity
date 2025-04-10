@@ -124,7 +124,7 @@ func testSigner(key crypto.PrivateKey, t *testing.T) {
 	case *rsa.PublicKey:
 		err = rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, bytes, sig)
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Error(err.Error())
 		}
 
 	default:

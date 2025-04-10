@@ -2,8 +2,7 @@ package parsec
 
 import (
 	"crypto"
-	"crypto/ecdsa"
-	"crypto/elliptic"
+	"crypto/ecdh"
 	"encoding/asn1"
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/identity/engines"
@@ -48,17 +47,15 @@ func (e *engine) LoadKey(key *url.URL) (crypto.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	x, y := elliptic.Unmarshal(elliptic.P256(), pubBytes)
+	pubKey, err := ecdh.P256().NewPublicKey(pubBytes)
 
-	pub := &ecdsa.PublicKey{
-		Curve: elliptic.P256(),
-		X:     x,
-		Y:     y,
+	if err != nil {
+		return nil, err
 	}
 
 	return &parsecKey{
 		name: keyName,
-		pub:  pub,
+		pub:  pubKey,
 	}, nil
 }
 
