@@ -76,8 +76,14 @@ type Identity interface {
 	// StopWatchingFiles reversed WatchFiles.
 	StopWatchingFiles()
 
+	// IsCertSettable returns nil if the "cert" certificate storage supports writing, used before calling SetCert()
+	IsCertSettable() error
+
 	// SetCert updates the current client cert in use and saves it to the identity file.
 	SetCert(pem string) error
+
+	// IsServerCertSettable returns nil if the server certificate storage supports writing, used before calling SetServerCert()
+	IsServerCertSettable() error
 
 	// SetServerCert update the current server cert in use and saves it to the identity file.
 	SetServerCert(pem string) error
@@ -276,6 +282,54 @@ func (id *ID) initCert(loadedCerts []*x509.Certificate) error {
 	return nil
 }
 
+func (id *ID) IsCertSettable() error {
+	certUrl, err := parseAddr(id.Config.Cert)
+
+	if err != nil {
+		return err
+	}
+
+	switch certUrl.Scheme {
+	case StoragePem:
+		return errors.New("cannot save client cert in pem storage format")
+	case StorageFile, "":
+		absPath, err := filepath.Abs(id.Config.Cert)
+		f, err := os.OpenFile(absPath, os.O_RDWR, 0664)
+		if err != nil {
+			return fmt.Errorf("can not save client certificate [%s] due to file error: %v", absPath, err)
+		}
+		defer func() { _ = f.Close() }()
+
+		return nil
+	}
+
+	return fmt.Errorf("can not save client certificate, location scheme not supported (%s) or address not defined (%s)", certUrl.Scheme, id.Config.Cert)
+}
+
+func (id *ID) IsServerCertSettable() error {
+	certUrl, err := parseAddr(id.Config.ServerCert)
+
+	if err != nil {
+		return err
+	}
+
+	switch certUrl.Scheme {
+	case StoragePem:
+		return errors.New("cannot save server cert in pem storage format")
+	case StorageFile, "":
+		absPath, err := filepath.Abs(id.Config.ServerCert)
+		f, err := os.OpenFile(absPath, os.O_RDWR, 0664)
+		if err != nil {
+			return fmt.Errorf("can not save server certificate [%s] due to file error: %v", absPath, err)
+		}
+		defer func() { _ = f.Close() }()
+
+		return nil
+	}
+
+	return fmt.Errorf("can not save server certificate, location scheme not supported (%s) or address not defined (%s)", certUrl.Scheme, id.Config.Cert)
+}
+
 // SetCert persists a new PEM as the ID's client certificate.
 func (id *ID) SetCert(pemStr string) error {
 	certUrl, err := parseAddr(id.Config.Cert)
@@ -289,7 +343,10 @@ func (id *ID) SetCert(pemStr string) error {
 		id.Config.Cert = StoragePem + ":" + pemStr
 		return fmt.Errorf("could not save client certificate, location scheme not supported for saving (%s):\n%s", id.Config.Cert, pemStr)
 	case StorageFile, "":
-		f, err := os.OpenFile(id.Config.Cert, os.O_RDWR, 0664)
+
+		absPath, err := filepath.Abs(id.Config.Cert)
+
+		f, err := os.OpenFile(absPath, os.O_RDWR, 0664)
 		if err != nil {
 			return fmt.Errorf("could not update client certificate [%s]: %v", id.Config.Cert, err)
 		}
@@ -326,7 +383,10 @@ func (id *ID) SetServerCert(pem string) error {
 		id.Config.ServerCert = StoragePem + ":" + pem
 		return fmt.Errorf("could not save client certificate, location scheme not supported for saving (%s): \n %s", id.Config.Cert, pem)
 	case StorageFile, "":
-		f, err := os.OpenFile(id.Config.ServerCert, os.O_RDWR, 0664)
+
+		absPath, err := filepath.Abs(id.Config.ServerCert)
+
+		f, err := os.OpenFile(absPath, os.O_RDWR, 0664)
 		if err != nil {
 			return fmt.Errorf("could not update server certificate [%s]: %v", id.Config.ServerCert, err)
 		}
