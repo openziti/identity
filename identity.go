@@ -294,6 +294,11 @@ func (id *ID) IsCertSettable() error {
 		return errors.New("cannot save client cert in pem storage format")
 	case StorageFile, "":
 		absPath, err := filepath.Abs(id.Config.Cert)
+
+		if err != nil {
+			return fmt.Errorf("cannot get absolute path for cert file %s: %w", id.Config.Cert, err)
+		}
+
 		f, err := os.OpenFile(absPath, os.O_RDWR, 0664)
 		if err != nil {
 			return fmt.Errorf("can not save client certificate [%s] due to file error: %v", absPath, err)
@@ -318,6 +323,11 @@ func (id *ID) IsServerCertSettable() error {
 		return errors.New("cannot save server cert in pem storage format")
 	case StorageFile, "":
 		absPath, err := filepath.Abs(id.Config.ServerCert)
+
+		if err != nil {
+			return fmt.Errorf("cannot get absolute path for server cert file %s: %w", id.Config.Cert, err)
+		}
+
 		f, err := os.OpenFile(absPath, os.O_RDWR, 0664)
 		if err != nil {
 			return fmt.Errorf("can not save server certificate [%s] due to file error: %v", absPath, err)
