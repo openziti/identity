@@ -33,6 +33,8 @@ type mockIdentity struct {
 	clientCert  *tls.Certificate
 }
 
+func (m *mockIdentity) IsCertSettable() error                                   { return nil }
+func (m *mockIdentity) IsServerCertSettable() error                             { return nil }
 func (m *mockIdentity) GetX509ActiveClientCertChain() []*x509.Certificate       { return nil }
 func (m *mockIdentity) GetX509ActiveServerCertChains() [][]*x509.Certificate    { return nil }
 func (m *mockIdentity) GetX509IdentityServerCertChain() []*x509.Certificate     { return nil }

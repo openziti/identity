@@ -84,28 +84,28 @@ func Test_softhsm2_keys(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		} else {
-			test_signer(key, t)
+			testSigner(key, t)
 		}
 	}
 }
 
-func test_signer(key crypto.PrivateKey, t *testing.T) {
-	priv, ok := key.(crypto.Signer)
+func testSigner(key crypto.PrivateKey, t *testing.T) {
+	privateKey, ok := key.(crypto.Signer)
 	if !ok {
 		t.Error("key is not a crypto.Signer")
 	}
 
-	pub := priv.Public()
+	pub := privateKey.Public()
 
 	bytes := make([]byte, 32)
 	_, _ = rand.Read(bytes)
 
-	sig, err := priv.Sign(rand.Reader, bytes, crypto.SHA256)
+	sig, err := privateKey.Sign(rand.Reader, bytes, crypto.SHA256)
 	if err != nil {
 		t.Error(err)
 	}
 
-	switch pubkey := pub.(type) {
+	switch pubKey := pub.(type) {
 	case *ecdsa.PublicKey:
 		var ecSig ecdsaSig
 		rest, err := asn1.Unmarshal(sig, &ecSig)
@@ -116,13 +116,13 @@ func test_signer(key crypto.PrivateKey, t *testing.T) {
 			t.Errorf("leftover bytes")
 		}
 
-		cool := ecdsa.Verify(pubkey, bytes, ecSig.R, ecSig.S)
+		cool := ecdsa.Verify(pubKey, bytes, ecSig.R, ecSig.S)
 		if !cool {
 			t.Errorf("signature validation fail")
 		}
 
 	case *rsa.PublicKey:
-		err = rsa.VerifyPKCS1v15(pubkey, crypto.SHA256, bytes, sig)
+		err = rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, bytes, sig)
 		if err != nil {
 			t.Errorf(err.Error())
 		}
