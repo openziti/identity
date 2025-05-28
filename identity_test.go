@@ -22,11 +22,11 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/sha1"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"github.com/openziti/identity/certtools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"math/big"
@@ -437,9 +437,9 @@ func Test_LoadIdentityWithAltServerCerts(t *testing.T) {
 	t.Run("has the correct server certificates", func(t *testing.T) {
 		serverTlsCerts := id.ServerCert()
 
-		childCert2Print := fmt.Sprintf("%x", sha1.Sum(childCert2Der))
-		childCert3Print := fmt.Sprintf("%x", sha1.Sum(childCert3Der))
-		childCert4Print := fmt.Sprintf("%x", sha1.Sum(childCert4Der))
+		childCert2Print := fmt.Sprintf("%x", certtools.Shake256HexN(childCert2Der, 20))
+		childCert3Print := fmt.Sprintf("%x", certtools.Shake256HexN(childCert3Der, 20))
+		childCert4Print := fmt.Sprintf("%x", certtools.Shake256HexN(childCert4Der, 20))
 
 		certsToKeys := map[string]*ecdsa.PrivateKey{
 			childCert2Print: childKey2.(*ecdsa.PrivateKey),
@@ -454,7 +454,7 @@ func Test_LoadIdentityWithAltServerCerts(t *testing.T) {
 		}
 
 		for _, cert := range serverTlsCerts {
-			curPrint := fmt.Sprintf("%x", sha1.Sum(cert.Leaf.Raw))
+			curPrint := fmt.Sprintf("%x", certtools.Shake256HexN(cert.Leaf.Raw, 20))
 			if certsToKeys[curPrint].Equal(cert.PrivateKey) {
 				foundServerCerts[curPrint] = true
 			}
@@ -472,18 +472,18 @@ func Test_LoadIdentityWithAltServerCerts(t *testing.T) {
 			chainMap := map[string][]string{}
 
 			for _, chain := range chains {
-				leafPrint := fmt.Sprintf("%x", sha1.Sum(chain[0].Raw))
+				leafPrint := fmt.Sprintf("%x", certtools.Shake256HexN(chain[0].Raw, 20))
 				for i, cert := range chain {
 					if i == 0 {
 						continue
 					}
-					chainMap[leafPrint] = append(chainMap[leafPrint], fmt.Sprintf("%x", sha1.Sum(cert.Raw)))
+					chainMap[leafPrint] = append(chainMap[leafPrint], fmt.Sprintf("%x", certtools.Shake256HexN(cert.Raw, 20)))
 				}
 			}
-			cert2Print := fmt.Sprintf("%x", sha1.Sum(childCert2Der))
-			cert3Print := fmt.Sprintf("%x", sha1.Sum(childCert3Der))
-			cert4Print := fmt.Sprintf("%x", sha1.Sum(childCert4Der))
-			parentPrint := fmt.Sprintf("%x", sha1.Sum(parentDer))
+			cert2Print := fmt.Sprintf("%x", certtools.Shake256HexN(childCert2Der, 20))
+			cert3Print := fmt.Sprintf("%x", certtools.Shake256HexN(childCert3Der, 20))
+			cert4Print := fmt.Sprintf("%x", certtools.Shake256HexN(childCert4Der, 20))
+			parentPrint := fmt.Sprintf("%x", certtools.Shake256HexN(parentDer, 20))
 
 			expectedMap := map[string][]string{
 				cert2Print: {parentPrint},
@@ -506,13 +506,13 @@ func Test_LoadIdentityWithAltServerCerts(t *testing.T) {
 			var actualCerts []string
 
 			for _, cert := range clientChain {
-				actualCerts = append(actualCerts, fmt.Sprintf("%x", sha1.Sum(cert.Raw)))
+				actualCerts = append(actualCerts, fmt.Sprintf("%x", certtools.Shake256HexN(cert.Raw, 20)))
 			}
 
 			var expectedCerts []string
 
 			for _, tlsCert := range id.Cert().Certificate {
-				expectedCerts = append(expectedCerts, fmt.Sprintf("%x", sha1.Sum(tlsCert)))
+				expectedCerts = append(expectedCerts, fmt.Sprintf("%x", certtools.Shake256HexN(tlsCert, 20)))
 			}
 
 			req.Len(actualCerts, 2)
@@ -530,7 +530,7 @@ func Test_LoadIdentityWithAltServerCerts(t *testing.T) {
 			var actualCerts []string
 
 			for _, cert := range serverChain {
-				actualCerts = append(actualCerts, fmt.Sprintf("%x", sha1.Sum(cert.Raw)))
+				actualCerts = append(actualCerts, fmt.Sprintf("%x", certtools.Shake256HexN(cert.Raw, 20)))
 			}
 
 			var expectedCerts []string
@@ -538,7 +538,7 @@ func Test_LoadIdentityWithAltServerCerts(t *testing.T) {
 			req.NoError(err)
 
 			for _, cert := range parsedCerts {
-				expectedCerts = append(expectedCerts, fmt.Sprintf("%x", sha1.Sum(cert.Raw)))
+				expectedCerts = append(expectedCerts, fmt.Sprintf("%x", certtools.Shake256HexN(cert.Raw, 20)))
 			}
 
 			req.Len(actualCerts, 2)
@@ -556,18 +556,18 @@ func Test_LoadIdentityWithAltServerCerts(t *testing.T) {
 			chainMap := map[string][]string{}
 
 			for _, chain := range chains {
-				leafPrint := fmt.Sprintf("%x", sha1.Sum(chain[0].Raw))
+				leafPrint := fmt.Sprintf("%x", certtools.Shake256HexN(chain[0].Raw, 20))
 				for i, cert := range chain {
 					if i == 0 {
 						continue
 					}
-					chainMap[leafPrint] = append(chainMap[leafPrint], fmt.Sprintf("%x", sha1.Sum(cert.Raw)))
+					chainMap[leafPrint] = append(chainMap[leafPrint], fmt.Sprintf("%x", certtools.Shake256HexN(cert.Raw, 20)))
 				}
 			}
 
-			cert3Print := fmt.Sprintf("%x", sha1.Sum(childCert3Der))
-			cert4Print := fmt.Sprintf("%x", sha1.Sum(childCert4Der))
-			parentPrint := fmt.Sprintf("%x", sha1.Sum(parentDer))
+			cert3Print := fmt.Sprintf("%x", certtools.Shake256HexN(childCert3Der, 20))
+			cert4Print := fmt.Sprintf("%x", certtools.Shake256HexN(childCert4Der, 20))
+			parentPrint := fmt.Sprintf("%x", certtools.Shake256HexN(parentDer, 20))
 
 			expectedMap := map[string][]string{
 				cert3Print: {parentPrint},

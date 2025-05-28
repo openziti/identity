@@ -18,7 +18,6 @@ package identity
 
 import (
 	"crypto"
-	"crypto/sha1"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -759,7 +758,7 @@ func getUniqueCerts(certs []*x509.Certificate) []*x509.Certificate {
 	var keys []string
 
 	for _, cert := range certs {
-		hash := sha1.Sum(cert.Raw)
+		hash := certtools.Shake256HexN(cert.Raw, 20)
 		fp := string(hash[:])
 		if _, exists := set[fp]; !exists {
 			set[fp] = cert
@@ -781,7 +780,7 @@ func getUniqueCas(certs []*x509.Certificate) []*x509.Certificate {
 
 	for _, cert := range certs {
 		if cert.IsCA {
-			hash := sha1.Sum(cert.Raw)
+			hash := certtools.Shake256HexN(cert.Raw, 20)
 			fp := string(hash[:])
 			if _, exists := set[fp]; !exists {
 				set[fp] = cert
