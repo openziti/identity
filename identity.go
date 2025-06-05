@@ -533,6 +533,7 @@ func (id *ID) ServerTLSConfig() *tls.Config {
 		RootCAs:        id.ca,
 		ClientAuth:     tls.RequireAnyClientCert,
 		MinVersion:     tlz.GetMinTlsVersion(),
+		MaxVersion:     tlz.GetMaxTlsVersion(),
 		CipherSuites:   tlz.GetCipherSuites(),
 	}
 
