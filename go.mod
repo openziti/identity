@@ -2,7 +2,7 @@ module github.com/openziti/identity
 
 go 1.23.0
 
-toolchain go1.23.9
+toolchain go1.24.1
 
 require (
 	github.com/fsnotify/fsnotify v1.7.0
