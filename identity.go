@@ -22,11 +22,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/foundation/v2/tlz"
-	"github.com/openziti/identity/certtools"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 	"sort"
@@ -34,6 +29,12 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/michaelquigley/pfxlog"
+	"github.com/openziti/foundation/v2/tlz"
+	"github.com/openziti/identity/certtools"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 const (
