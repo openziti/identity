@@ -54,6 +54,12 @@ func (id *ID) startWatching() error {
 	}
 
 	go func() {
+		defer func() {
+			if closeErr := watcher.Close(); closeErr != nil {
+				logrus.WithError(closeErr).Error("error closing identity file watcher")
+			}
+		}()
+
 		for {
 			select {
 			case event, ok := <-watcher.Events:
@@ -82,11 +88,9 @@ func (id *ID) startWatching() error {
 	}()
 
 	for _, file := range files {
-		err := watcher.Add(file)
-
-		if err != nil {
+		if err = watcher.Add(file); err != nil {
 			_ = watcher.Close()
-			close(id.closeNotify)
+			return err
 		}
 	}
 
