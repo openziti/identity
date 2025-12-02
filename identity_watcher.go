@@ -19,6 +19,8 @@
 package identity
 
 import (
+	"path/filepath"
+
 	"github.com/fsnotify/fsnotify"
 	"github.com/sirupsen/logrus"
 )
@@ -88,7 +90,18 @@ func (id *ID) startWatching() error {
 	}()
 
 	for _, file := range files {
-		if err = watcher.Add(file); err != nil {
+		// Resolve symlinks to watch the actual target file. This is important
+		// for Kubernetes Secrets where files are symlinks to a versioned data
+		// directory.  Watching the resolved path ensures fsnotify detects
+		// changes when the certificate's underlying TLS secret resource is
+		// rotated during auto-renewal by the platform's certificate service.
+		watchPath := file
+		if resolved, evalErr := filepath.EvalSymlinks(file); evalErr == nil {
+			logrus.Debugf("resolved symlink %s -> %s for file watching", file, resolved)
+			watchPath = resolved
+		}
+
+		if err = watcher.Add(watchPath); err != nil {
 			_ = watcher.Close()
 			return err
 		}
