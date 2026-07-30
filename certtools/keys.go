@@ -157,7 +157,7 @@ func SavePrivateKey(key crypto.PrivateKey, file string) error {
 		t = "EC PRIVATE KEY"
 		der, _ = x509.MarshalECPrivateKey(ecK)
 	} else {
-		return fmt.Errorf("Unsupported key type")
+		return fmt.Errorf("unsupported key type")
 	}
 
 	keyPem := &pem.Block{Type: t, Bytes: der}
