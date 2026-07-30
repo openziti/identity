@@ -19,8 +19,11 @@
 package identity
 
 import (
+	"context"
+	"log/slog"
+
 	"github.com/fsnotify/fsnotify"
-	"github.com/sirupsen/logrus"
+	"github.com/openziti/foundation/v2/logging"
 )
 
 // StopWatchingFiles decrements the number of watchers. If zero is hit all watching is stopped.
@@ -29,7 +32,8 @@ func (id *ID) StopWatchingFiles() {
 	if count := id.watchCount.Add(-1); count == 0 {
 		close(id.closeNotify)
 	} else if count < 0 {
-		logrus.Panicf("StopWatchingFiles called when not watching count is %d", count)
+		logging.Panic(context.Background(), "StopWatchingFiles called when not watching",
+			slog.String("channel", "identity"), slog.Int("count", int(count)))
 	}
 }
 
@@ -56,7 +60,7 @@ func (id *ID) startWatching() error {
 	go func() {
 		defer func() {
 			if closeErr := watcher.Close(); closeErr != nil {
-				logrus.WithError(closeErr).Error("error closing identity file watcher")
+				log.Error("error closing identity file watcher", "error", closeErr)
 			}
 		}()
 
@@ -64,24 +68,24 @@ func (id *ID) startWatching() error {
 			select {
 			case event, ok := <-watcher.Events:
 				if !ok {
-					logrus.Error("identity file watcher received !ok from events, no further information")
+					log.Error("identity file watcher received !ok from events, no further information")
 					return
 				}
 
-				logrus.Info("identity file watcher received event, queuing reload: " + event.String())
+				log.Info("identity file watcher received event, queuing reload", "event", event.String())
 				id.queueReload(id.closeNotify)
 
 			case err, ok := <-watcher.Errors:
 				if err != nil {
-					logrus.Errorf("identity file watcher received an error [%v]", err)
+					log.Error("identity file watcher received an error", "error", err)
 				}
 
 				if !ok {
-					logrus.Error("identity file watcher received !ok from errors, no further information")
+					log.Error("identity file watcher received !ok from errors, no further information")
 					return
 				}
 			case <-id.closeNotify:
-				logrus.Info("identity file watcher closing")
+				log.Info("identity file watcher closing")
 				return
 			}
 		}

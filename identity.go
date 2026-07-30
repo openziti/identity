@@ -30,17 +30,18 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/michaelquigley/pfxlog"
+	"github.com/openziti/foundation/v2/logging"
 	"github.com/openziti/foundation/v2/tlz"
 	"github.com/openziti/identity/certtools"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
 	StorageFile = "file"
 	StoragePem  = "pem"
 )
+
+var log = logging.For("identity")
 
 type Identity interface {
 
@@ -633,9 +634,9 @@ func (id *ID) queueReload(closeNotify <-chan struct{}) {
 			select {
 			case <-time.After(1 * time.Second):
 				if stillNeedsReload := id.needsReload.CompareAndSwap(true, false); stillNeedsReload {
-					logrus.Info("reloading identity configuration")
+					log.Info("reloading identity configuration")
 					if err := id.Reload(); err != nil {
-						logrus.Errorf("could not reload identity configuration: %v", err)
+						log.Error("could not reload identity configuration", "error", err)
 					}
 				}
 			case <-closeNotify:
@@ -710,11 +711,16 @@ func LoadIdentity(cfg Config) (Identity, error) {
 			}
 
 			if strings.EqualFold("true", os.Getenv("ZT_DEBUG_CERTS")) {
-				log := pfxlog.Logger()
 				for i, chain := range chains {
 					for j, cert := range chain {
-						log.Infof("server cert [%v.%v] cn=%v isca=%v dns=%v ips=%v uris=%v", i, j,
-							cert.Subject.CommonName, cert.IsCA, cert.DNSNames, cert.IPAddresses, cert.URIs)
+						log.Info("server cert",
+							"chain", i,
+							"index", j,
+							"cn", cert.Subject.CommonName,
+							"isCa", cert.IsCA,
+							"dns", cert.DNSNames,
+							"ips", cert.IPAddresses,
+							"uris", cert.URIs)
 					}
 				}
 			}

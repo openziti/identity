@@ -1,10 +1,13 @@
 package identity
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"github.com/michaelquigley/pfxlog"
+	"log/slog"
 	"sync"
+
+	"github.com/openziti/foundation/v2/logging"
 )
 
 var _ Identity = &LazyIdentity{}
@@ -22,7 +25,8 @@ func (self *LazyIdentity) load() {
 		self.Identity, err = LoadIdentity(*self.Config)
 
 		if err != nil {
-			pfxlog.Logger().Fatalf("error during lazy load of identity: %v", err)
+			logging.Fatal(context.Background(), "error during lazy load of identity",
+				slog.String("channel", "identity"), slog.Any("error", err))
 		}
 	})
 }
