@@ -27,13 +27,14 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/michaelquigley/pfxlog"
-	"github.com/miekg/pkcs11"
-	"github.com/openziti/identity/engines"
 	"io"
 	"math/big"
 	"net/url"
 	"strconv"
+
+	"github.com/miekg/pkcs11"
+	"github.com/openziti/foundation/v2/logging"
+	"github.com/openziti/identity/engines"
 )
 
 type engine struct {
@@ -57,7 +58,7 @@ func init() {
 
 var contexts = map[string]*pkcs11.Ctx{}
 
-var log = pfxlog.ContextLogger(EngineId)
+var log = logging.For("identity.engine.pkcs11")
 
 type p11Signer struct {
 	c     *pkcs11.Ctx
@@ -169,7 +170,7 @@ func (k *p11Signer) Public() crypto.PublicKey {
 }
 
 func (*engine) LoadKey(key *url.URL) (crypto.PrivateKey, error) {
-	log.WithField("url", key).Debug("loading key")
+	log.Debug("loading key", "url", key.String())
 
 	driver := key.Path
 	if driver == "" {
@@ -180,7 +181,7 @@ func (*engine) LoadKey(key *url.URL) (crypto.PrivateKey, error) {
 		driver = key.Host
 	}
 
-	log.Infof("using driver: %v", driver)
+	log.Info("using driver", "driver", driver)
 	ctx, err := getContext(driver)
 	if err != nil {
 		return nil, err
@@ -195,15 +196,15 @@ func (*engine) LoadKey(key *url.URL) (crypto.PrivateKey, error) {
 			return nil, err
 		} else {
 			slotId = slots[0]
-			log.Warnf("slot not specified, using first slot reported by the driver (%d)", slotId)
+			log.Warn("slot not specified, using first slot reported by the driver", "slot", slotId)
 		}
 	} else {
 		n, err := strconv.ParseInt(slot, 0, 64)
 		if err != nil {
-			log.Errorf("slot with value [%v] could not be parsed.", slot)
+			log.Error("slot could not be parsed", "slot", slot)
 		}
 		slotId = uint(n)
-		log.Debugf("using slot id: %d", slotId)
+		log.Debug("using slot id", "slot", slotId)
 	}
 
 	session, err := ctx.OpenSession(slotId, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
@@ -247,7 +248,7 @@ func (*engine) LoadKey(key *url.URL) (crypto.PrivateKey, error) {
 	if err != nil && err != pkcs11.Error(pkcs11.CKR_ATTRIBUTE_TYPE_INVALID) {
 		return nil, err
 	}
-	log.WithField("sign mechanism", mechId).Debug("found signing mechanism")
+	log.Debug("found signing mechanism", "signMechanism", mechId)
 
 	var pubKey crypto.PublicKey
 	var signMech *pkcs11.Mechanism
@@ -330,7 +331,7 @@ func getECDSAmechanism(ctx *pkcs11.Ctx, slot uint, pubKey *ecdsa.PublicKey) (*pk
 		if err == nil {
 			return mech[0], nil
 		} else {
-			log.WithError(err).Warnf("failed to get mechanism info [%x]", m)
+			log.Warn("failed to get mechanism info", "mechanism", m, "error", err)
 		}
 	}
 
@@ -347,7 +348,7 @@ func loadECDSApub(ctx *pkcs11.Ctx, session pkcs11.SessionHandle, ph pkcs11.Objec
 	} else {
 		var oid asn1.ObjectIdentifier
 		rest, err := asn1.UnmarshalWithParams(attrs[0].Value, &oid, "")
-		log.Debugf("EC oid[%s], rest: %v, err: %v", oid, rest, err)
+		log.Debug("parsed EC params", "oid", oid.String(), "rest", rest, "error", err)
 		curve, found := oid2curve[oid.String()]
 		if !found {
 			return nil, fmt.Errorf("elliptic curve not found for oid[%s]", oid)
@@ -414,7 +415,7 @@ func findHandle(ctx *pkcs11.Ctx, session pkcs11.SessionHandle, cls uint, id []by
 	}
 	defer func() {
 		if e := ctx.FindObjectsFinal(session); e != nil {
-			log.Warnf("error: FindObjectFinal(): %v", e)
+			log.Warn("FindObjectsFinal failed", "error", e)
 		}
 	}()
 

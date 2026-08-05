@@ -1,23 +1,26 @@
 package parsec
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdh"
 	"encoding/asn1"
-	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/identity/engines"
-	"github.com/parallaxsecond/parsec-client-go/parsec"
-	"github.com/parallaxsecond/parsec-client-go/parsec/algorithm"
 	"io"
+	"log/slog"
 	"math/big"
 	"net/url"
 	"sync"
+
+	"github.com/openziti/foundation/v2/logging"
+	"github.com/openziti/identity/engines"
+	"github.com/parallaxsecond/parsec-client-go/parsec"
+	"github.com/parallaxsecond/parsec-client-go/parsec/algorithm"
 )
 
 const EngineId = "parsec"
 
 var parsecEngine = &engine{}
-var log = pfxlog.ContextLogger("parsec")
+var log = logging.For("identity.engine.parsec")
 
 func init() {
 	engines.RegisterEngine(parsecEngine)
@@ -38,7 +41,7 @@ func (e *engine) Id() string {
 }
 
 func (e *engine) LoadKey(key *url.URL) (crypto.PrivateKey, error) {
-	log.Infof("loadig key: %v", key)
+	log.Info("loading key", "key", key.String())
 	keyName := key.Opaque
 
 	bc := e.getClient()
@@ -61,12 +64,13 @@ func (e *engine) LoadKey(key *url.URL) (crypto.PrivateKey, error) {
 
 func (e *engine) getClient() *parsec.BasicClient {
 	e.initer.Do(func() {
-		log.Infof("initializing client")
+		log.Info("initializing parsec client")
 		config := parsec.NewClientConfig()
 		config.Authenticator(parsec.NewUnixPeerAuthenticator())
 		bc, err := parsec.CreateConfiguredClient(config)
 		if err != nil {
-			log.Fatal(err)
+			logging.Fatal(context.Background(), "failed to create parsec client",
+				slog.String("channel", "identity.engine.parsec"), slog.Any("error", err))
 		}
 		e.client = bc
 	})
@@ -79,7 +83,7 @@ func (pk *parsecKey) Public() crypto.PublicKey {
 }
 
 func (pk *parsecKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
-	log.Infof("key[%s] signing %d bytes", pk.name, len(digest))
+	log.Info("signing", "key", pk.name, "bytes", len(digest))
 	bc := parsecEngine.getClient()
 	algo := algorithm.NewAsymmetricSignature().Ecdsa(algorithm.HashAlgorithmTypeSHA256).GetAsymmetricSignature()
 
