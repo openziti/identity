@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/miekg/pkcs11 v1.1.1
-	github.com/openziti/foundation/v2 v2.0.102
+	github.com/openziti/foundation/v2 v2.0.104
 	github.com/parallaxsecond/parsec-client-go v0.0.0-20210416104105-e2d188152601
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.12.1
